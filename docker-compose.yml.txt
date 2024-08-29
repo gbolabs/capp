@@ -1,0 +1,24 @@
+services:
+  nginx:
+    image: acrgbocaplab.azurecr.io/capplab/ingress:latest
+    ports:
+      - 80:80
+    depends_on:
+      - api
+      - web
+
+  api:
+    image: acrgbocaplab.azurecr.io/capplab/api:latest
+    networks:
+      - default
+    # Add any additional configuration for your API container here
+
+  web:
+    image: acrgbocaplab.azurecr.io/capplab/web:latest
+    networks:
+      - default
+    # Add any additional configuration for your web container here
+
+networks:
+  default:
+    driver: bridge

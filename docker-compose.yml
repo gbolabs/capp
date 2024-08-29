@@ -1,0 +1,30 @@
+services:
+  nginx:
+    build:
+      context: ingress
+      dockerfile: Dockerfile
+    ports:
+      - 80:80
+    depends_on:
+      - api
+      - web
+
+  api:
+    build:
+      context: api
+      dockerfile: Dockerfile
+    networks:
+      - default
+    # Add any additional configuration for your API container here
+
+  web:
+    build:
+      context: web/btweb
+      dockerfile: Dockerfile
+    networks:
+      - default
+    # Add any additional configuration for your web container here
+
+networks:
+  default:
+    driver: bridge

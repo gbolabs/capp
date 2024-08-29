@@ -1,0 +1,22 @@
+# Ignore node_modules folder
+node_modules
+
+# Ignore .git folder
+.git
+
+# ignore angular cache
+.angular
+
+# Ignore build artifacts
+dist
+
+# Ignore development files
+*.ts
+*.map
+
+# Ignore yarn.lock for yarn
+yarn.lock
+
+# Ignore any other temporary or generated files
+tmp/
+logs/
