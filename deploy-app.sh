@@ -1,6 +1,7 @@
+
 acr=acrgbocaplab.azurecr.io
 imagePrefix=acrgbocaplab.azurecr.io/capplab
-tag=1.3.1
+tag=1.4.11
 
 location=switzerlandnorth
 resourceGroup=rg-gbo-capplab-dev
@@ -14,11 +15,6 @@ subnet=cae
 containerRegistryName=acrgbocaplab
 managedIdentityName=mi-gbo-capplab-dev
 miId=$(az identity show --name $managedIdentityName --resource-group $resourceGroup --query id --output tsv)
-if [ -z "$miId" ]; then
-    echo "Managed Identity not found with name $managedIdentityName and resource group $resourceGroup"
-else
-    echo "Managed Identity found with id $miId"
-fi
 
 caeName=cae-gbo-capplab-dev
 
@@ -35,6 +31,9 @@ az containerapp create --name $capApiName \
     --ingress internal --target-port 8080 \
     --environment $caeName
 
+apiHostname=$(az containerapp show --name $capApiName --resource-group $resourceGroup --query fqdn --output tsv)
+echo "API Hostname: $apiHostname"
+
 # deploy the container app web
 az containerapp create --name $capWebName \
     --resource-group $resourceGroup \
@@ -43,6 +42,9 @@ az containerapp create --name $capWebName \
     --registry-identity $miId \
     --ingress internal --target-port 80 \
     --environment $caeName
+
+webHostname=$(az containerapp show --name $capWebName --resource-group $resourceGroup --query fqdn --output tsv)
+echo "Web Hostname: $webHostname"
 
 # deploy the container app ingress
 az containerapp create --name $capIngressName \
