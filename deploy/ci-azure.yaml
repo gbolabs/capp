@@ -64,3 +64,15 @@ stages:
               command: 'build'
               Dockerfile: 'src/api/api/Dockerfile'
               tags: '$(Build.BuildId)'
+  - stage: DockerWeb
+    displayName: 'Docker Web'
+    jobs:
+      - job: DockerWeb
+        displayName: 'Docker Web'
+        steps:
+          - checkout: self
+          - task: Docker@2
+            inputs:
+              command: 'build'
+              Dockerfile: 'src/web/btweb/Dockerfile'
+              tags: '$(Build.BuildId)'
