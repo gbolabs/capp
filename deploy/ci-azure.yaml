@@ -1,0 +1,11 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'pr114-linux'
+
+steps:
+  - script: echo Hello, World!
+    displayName: 'Print Hello, World!'
