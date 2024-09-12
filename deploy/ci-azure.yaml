@@ -15,9 +15,10 @@ stages:
           - task: UseDotNet@2
             inputs:
               packageType: 'sdk'
+              workingDirectory: 'api'
               useGlobalJson: true
           - task: DotNetCoreCLI@2
             inputs:
               command: 'restore'
-              workingDirectory: 'src/Api'
+              workingDirectory: 'api'
               projects: '**/*.sln'
