@@ -5,6 +5,9 @@ trigger:
 
 pool: 'pr114-linux'
 
+variables:
+  BuildConfiguration: 'Release'
+
 stages:
   - stage: API
     jobs:
@@ -20,5 +23,17 @@ stages:
           - task: DotNetCoreCLI@2
             inputs:
               command: 'restore'
-              workingDirectory: 'api'
+              workingDirectory: 'src/api'
               projects: '**/*.sln'
+          - task: DotNetCoreCLI@2
+            inputs:
+              command: 'build'
+              workingDirectory: 'src/api'
+              projects: '**/*.sln'
+              arguments: '--configuration $(BuildConfiguration)'
+          - task: DotNetCoreCLI@2
+            inputs:
+              command: 'test'
+              workingDirectory: 'src/api'
+              projects: '**/*tests.csproj'
+              arguments: '--configuration $(BuildConfiguration)'

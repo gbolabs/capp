@@ -1,7 +1,7 @@
 services:
   nginx:
     build:
-      context: ingress
+      context: src/ingress
       dockerfile: Dockerfile
     ports:
       - 80:80
@@ -11,7 +11,7 @@ services:
 
   api:
     build:
-      context: api
+      context: src/api/api
       dockerfile: Dockerfile
     networks:
       - default
@@ -19,7 +19,7 @@ services:
 
   web:
     build:
-      context: web/btweb
+      context: src/web/btweb
       dockerfile: Dockerfile
     networks:
       - default
