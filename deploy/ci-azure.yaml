@@ -5,6 +5,19 @@ trigger:
 
 pool: 'pr114-linux'
 
-steps:
-  - script: echo Hello, World!
-    displayName: 'Print Hello, World!'
+stages:
+  - stage: API
+    jobs:
+      - job: API
+        displayName: 'API'
+        steps:
+          - checkout: self
+          - task: UseDotNet@2
+            inputs:
+              packageType: 'sdk'
+              useGlobalJson: true
+          - task: DotNetCoreCLI@2
+            inputs:
+              command: 'restore'
+              workingDirectory: 'src/Api'
+              projects: '**/*.sln'
