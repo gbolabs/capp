@@ -52,3 +52,14 @@ stages:
               npm run build
             workingDirectory: 'src/web/btweb'
             displayName: 'npm install and build'
+  - stage: Docker-API
+    jobs:
+      - job: Docker-API
+        displayName: 'Docker API'
+        steps:
+          - checkout: self
+          - task: Docker@2
+            inputs:
+              command: 'build'
+              Dockerfile: 'src/api/api/Dockerfile'
+              tags: '$(Build.BuildId)'
