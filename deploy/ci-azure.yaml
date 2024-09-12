@@ -18,7 +18,7 @@ stages:
           - task: UseDotNet@2
             inputs:
               packageType: 'sdk'
-              workingDirectory: 'api'
+              workingDirectory: 'src/api'
               useGlobalJson: true
           - task: DotNetCoreCLI@2
             inputs:
