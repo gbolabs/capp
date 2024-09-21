@@ -1,0 +1,11 @@
+using 'app.bicep'
+
+param location = 'switzerlandnorth'
+param env = 'dev'
+param dashedNameSuffix = 'capplab-gbo-${env}-01'
+param blockNameSuffix = 'capplabgbo${env}01'
+param caeEnvName = ''
+param acrName = ''
+param uaidName = ''
+param containerImageRepository = ' '
+param containerImageTag = 'latest'

@@ -4,8 +4,10 @@ subscription=199fc2c4-a57c-4049-afbe-e1831f4b2f6e
 
 vnetAdressPrefix=192.168.0.0/16
 subnetAdressPrefix=192.168.0.0/24
-subnetPepAdressPrefix=192.168.1.0/24
-vnetName=vnet-gbo-capplab-dev
+vnetPepAdressPrefix=10.0.1.0/16
+subnetPepAdressPrefix=10.0.1.0/24
+vnetName=vnet-cae-gbo-capplab-dev
+vnetPepName=vnet-pep-gbo-capplab-dev
 subnet=cae
 pepSubnet=peps
 networkSecurityGroupName=nsg-$pepSubnet-gbo-capplab-dev
@@ -123,16 +125,32 @@ az network vnet subnet update \
 
 echo ""
 
-# Create the private endpoint subnet
-echo -e "\n\nCreating private endpoint subnet..."
-az network vnet subnet create \
-    --name $pepSubnet \
+# Create the VNet for the private endpoint
+echo -e "\n\nCreating Virtual Network for the private endpoint..."
+az network vnet create \
+    --name $vnetPepName \
     --resource-group $resourceGroup \
-    --vnet-name $vnetName \
-    --address-prefix $subnetPepAdressPrefix \
+    --location $location \
+    --address-prefixes $vnetPepAdressPrefix \
+    --subnet-name $pepSubnet \
+    --subnet-prefix $subnetPepAdressPrefix \
     1>/dev/null
 
 echo ""
+
+# Peer the VNet with the private endpoint VNet
+echo -e "\n\nPeering the VNet with the private endpoint VNet..."
+az network vnet peering create \
+    --name "peering-$vnetName-$vnetPepName" \
+    --resource-group $resourceGroup \
+    --vnet-name $vnetName \
+    --remote-vnet $vnetPepName \
+    --allow-vnet-access \
+    --allow-forwarded-traffic \
+    --allow-gateway-transit \
+    --allow-egress \
+    --use-remote-gateways \
+    1>/dev/null
 
 # Create a network security group for the subnet
 echo -e "\n\nCreating network security group for the subnet..."
@@ -162,7 +180,7 @@ az network nsg rule create \
 echo ""
 
 # Associate the network security group with the subnet
-echo -e "\n\nAssociating network security group with the subnet..."
+echo -e "\n\nAssociating network security group with the subnets..."
 az network vnet subnet update \
     --name $pepSubnet \
     --resource-group $resourceGroup \
@@ -170,6 +188,12 @@ az network vnet subnet update \
     --network-security-group $networkSecurityGroupName \
     1>/dev/null
 
+az network vnet subnet update \
+    --name $subnet \
+    --resource-group $resourceGroup \
+    --vnet-name $vnetName \
+    --network-security-group $networkSecurityGroupName \
+    1>/dev/null
 echo ""
 
 # Create Nsg Flow Logs
@@ -184,8 +208,6 @@ az network watcher flow-log create \
     --retention 7 \
     --storage-account $flowLogStorageAccountName \
     1>/dev/null
-
-# Crate trafic analytics workspace
 
 # Create the Private DNS Zone for the Azure Container Registry private endpoint
 echo -e "\n\nCreating Private DNS Zone for Azure Container Registry..."
