@@ -137,7 +137,7 @@ az network nsg rule create \
     --name "acr" \
     --resource-group $resourceGroup \
     --nsg-name $networkSecurityGroupName \
-    --priority 100 \
+    --priority 200 \
     --source-address-prefixes VirtualNetwork \
     --destination-address-prefixes AzureContainerRegistry \
     --destination-port-ranges 443 \
