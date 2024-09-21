@@ -62,15 +62,5 @@ if [ "$mode" == "deny" ]; then
 elif [ "$mode" == "allow" ]; then
     # Allow the https trafic to the acr private endpoint
     echo "Allowing the https trafic to the acr private endpoint"
-    az network nsg rule create \
-        --name allow-https-to-acr \
-        --nsg-name $networkSecurityGroupName \
-        --resource-group $resourceGroup \
-        --priority 100 \
-        --source-address-prefixes VirtualNetwork \
-        --destination-address-prefixes AzureContainerRegistry \
-        --destination-port-ranges 443 \
-        --access Allow \
-        --direction Inbound \
-        --protocol Tcp
+    echo "Allowing is already done by the default rules, ID 200"
 fi
