@@ -5,11 +5,27 @@ services:
       dockerfile: Dockerfile
     ports:
       - 80:80
+    environment:
+      - CAPP_API_HOST=api
+      - CAPP_API_PORT=8080
+      - CAPP_API_SCHEME=http
+      - CAPP_WEB_HOST=web
+      - CAPP_WEB_PORT=80
+      - CAPP_WEB_SCHEME=http
+      - CAPP_CARBONE_HOST=carbone
+      - CAPP_CARBONE_PORT=4000
+      - CAPP_CARBONE_SCHEME=http
+      - DEBUG=1
+
     depends_on:
       - api
       - web
+      - carbone
 
   api:
+    hostname: api
+    restart: always
+    scale: 4
     build:
       context: src/api/api
       dockerfile: Dockerfile
@@ -18,12 +34,22 @@ services:
     # Add any additional configuration for your API container here
 
   web:
+    hostname: web
     build:
       context: src/web/btweb
       dockerfile: Dockerfile
     networks:
       - default
     # Add any additional configuration for your web container here
+
+  carbone:
+    hostname: carbone
+    build:
+      context: src/carbone
+      dockerfile: Dockerfile
+    networks:
+      - default
+    # Add any additional configuration for your carbone container here
 
 networks:
   default:

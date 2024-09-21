@@ -27,7 +27,7 @@ var summaries = new[]
 
 app.MapGet("/api", () => "Hello World!");
 
-app.MapGet("/api/health", () => new { Status = "Healthy" });
+app.MapGet("/api/health", () => new { Status = "Healthy", Hostname= Environment.MachineName });
 
 app.MapGet("/api/version", () => new { Version = "1.0.0"});
 

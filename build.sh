@@ -25,3 +25,8 @@ echo "================"
 docker build -t $imagePrefix/ingress:$tag -t $imagePrefix/ingress:latest -f ./src/ingress/Dockerfile ./src/ingress
 docker push $imagePrefix/ingress:$tag
 docker push $imagePrefix/ingress:latest
+
+# Build the carbone
+echo "Building the carbone using az acr build to avoid transferring 2GB of data"
+echo "================"
+az acr build --registry $acr --image $imagePrefix/carbone:$tag -f ./src/carbone/Dockerfile ./src/carbone

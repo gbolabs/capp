@@ -1,0 +1,42 @@
+[
+  {
+    "access": "Allow",
+    "destinationAddressPrefix": "AzureContainerRegistry",
+    "destinationAddressPrefixes": [],
+    "destinationPortRange": "443",
+    "destinationPortRanges": [],
+    "direction": "Inbound",
+    "etag": "W/\"00c08a3c-ce03-4351-aed8-e671b05c7895\"",
+    "id": "/subscriptions/199fc2c4-a57c-4049-afbe-e1831f4b2f6e/resourceGroups/rg-gbo-capplab-dev/providers/Microsoft.Network/networkSecurityGroups/nsg-peps-gbo-capplab-dev/securityRules/acr",
+    "name": "acr",
+    "priority": 200,
+    "protocol": "Tcp",
+    "provisioningState": "Succeeded",
+    "resourceGroup": "rg-gbo-capplab-dev",
+    "sourceAddressPrefix": "VirtualNetwork",
+    "sourceAddressPrefixes": [],
+    "sourcePortRange": "*",
+    "sourcePortRanges": [],
+    "type": "Microsoft.Network/networkSecurityGroups/securityRules"
+  },
+  {
+    "access": "Deny",
+    "destinationAddressPrefix": "AzureContainerRegistry",
+    "destinationAddressPrefixes": [],
+    "destinationPortRange": "443",
+    "destinationPortRanges": [],
+    "direction": "Inbound",
+    "etag": "W/\"00c08a3c-ce03-4351-aed8-e671b05c7895\"",
+    "id": "/subscriptions/199fc2c4-a57c-4049-afbe-e1831f4b2f6e/resourceGroups/rg-gbo-capplab-dev/providers/Microsoft.Network/networkSecurityGroups/nsg-peps-gbo-capplab-dev/securityRules/deny-https-to-acr",
+    "name": "deny-https-to-acr",
+    "priority": 100,
+    "protocol": "Tcp",
+    "provisioningState": "Succeeded",
+    "resourceGroup": "rg-gbo-capplab-dev",
+    "sourceAddressPrefix": "VirtualNetwork",
+    "sourceAddressPrefixes": [],
+    "sourcePortRange": "*",
+    "sourcePortRanges": [],
+    "type": "Microsoft.Network/networkSecurityGroups/securityRules"
+  }
+]

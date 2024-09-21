@@ -38,18 +38,20 @@ if [ "$mode" != "deny" ] && [ "$mode" != "allow" ]; then
 fi
 
 # echo delete rule 100 from nsg
-echo "Deleting the existing rule 100 from the network security group"
+echo "Deleting the existing rule id 100 from the network security group"
+denyRuleName="DenyHttpsToAcr"
 az network nsg rule delete \
-    --name allow-https-to-acr \
+    --name $denyRuleName \
     --nsg-name $networkSecurityGroupName \
-    --resource-group $resourceGroup
+    --resource-group $resourceGroup \
+    1> /dev/null
 
 # Perform actions based on the mode
 if [ "$mode" == "deny" ]; then
     # Deny the https trafic to the acr private endpoint
     echo "Denying the https trafic to the acr private endpoint"
     az network nsg rule create \
-        --name deny-https-to-acr \
+        --name $denyRuleName \
         --nsg-name $networkSecurityGroupName \
         --resource-group $resourceGroup \
         --priority 100 \
@@ -58,7 +60,8 @@ if [ "$mode" == "deny" ]; then
         --destination-port-ranges 443 \
         --access Deny \
         --direction Inbound \
-        --protocol Tcp
+        --protocol Tcp \
+        1> /dev/null
 elif [ "$mode" == "allow" ]; then
     # Allow the https trafic to the acr private endpoint
     echo "Allowing the https trafic to the acr private endpoint"

@@ -18,8 +18,12 @@ caeName=cae-gbo-capplab-dev
 capIngressName=cap-ingress-gbo-capplab-dev
 capApiName=cap-api-gbo-capplab-dev
 capWebName=cap-web-gbo-capplab-dev
+flowLogStorageAccountName=stgbocapplabflowlogsdev
 
 logAnalyticsWorkspaceName=law-gbo-capplab-dev
+
+azsqlServerName=sql-gbo-capplab-dev
+azsqlDbName=db-gbo-capplab-dev
 
 # Create the resource group
 echo -e "\n\nCreating resource group..."
@@ -59,6 +63,15 @@ logAnalyticsWorkspaceKey=$(az monitor log-analytics workspace get-shared-keys \
     --output tsv)
 
 echo ""
+
+# Create a storage account for the flow logs
+echo -e "\n\nCreating storage account for the flow logs..."
+az storage account create \
+    --name $flowLogStorageAccountName \
+    --resource-group $resourceGroup \
+    --location $location \
+    --sku Standard_LRS \
+    1>/dev/null
 
 # Create the VNet
 echo -e "\n\nCreating Virtual Network..."
@@ -148,6 +161,32 @@ az network nsg rule create \
 
 echo ""
 
+# Associate the network security group with the subnet
+echo -e "\n\nAssociating network security group with the subnet..."
+az network vnet subnet update \
+    --name $pepSubnet \
+    --resource-group $resourceGroup \
+    --vnet-name $vnetName \
+    --network-security-group $networkSecurityGroupName \
+    1>/dev/null
+
+echo ""
+
+# Create Nsg Flow Logs
+# az network watcher flow-log create --location westus --resource-group MyResourceGroup --name MyFlowLog --nsg MyNetworkSecurityGroupName --storage-account account
+echo -e "\n\nCreating Network Security Group Flow Logs..."
+az network watcher flow-log create \
+    --location $location \
+    --resource-group $resourceGroup \
+    --name "$networkSecurityGroupName-flowlogs" \
+    --nsg $networkSecurityGroupName \
+    --enabled true \
+    --retention 7 \
+    --storage-account $flowLogStorageAccountName \
+    1>/dev/null
+
+# Crate trafic analytics workspace
+
 # Create the Private DNS Zone for the Azure Container Registry private endpoint
 echo -e "\n\nCreating Private DNS Zone for Azure Container Registry..."
 az network private-dns zone create \
@@ -156,6 +195,25 @@ az network private-dns zone create \
     1>/dev/null
 
 echo ""
+
+# Create the private dns zone for azure sql server
+echo -e "\n\nCreating Private DNS Zone for Azure SQL Server..."
+az network private-dns zone create \
+    --name "privatelink.database.windows.net" \
+    --resource-group $resourceGroup \
+    1>/dev/null
+
+echo ""
+
+# Create the Private DNS Link for the Azure SQL Server private endpoint
+echo -e "\n\nCreating Private DNS Link for Azure SQL Server..."
+az network private-dns link vnet create \
+    --name "sql" \
+    --resource-group $resourceGroup \
+    --zone-name "privatelink.database.windows.net" \
+    --virtual-network $vnetName \
+    --registration-enabled false \
+    1>/dev/null
 
 # Create the Private DNS Link for the Azure Container Registry private endpoint
 echo -e "\n\nCreating Private DNS Link for Azure Container Registry..."
@@ -176,7 +234,18 @@ az acr create \
     --resource-group $resourceGroup \
     --location $location \
     --sku Premium \
-    --admin-enabled true \
+    --admin-enabled false \
+    --allow-trusted-services false \
+    --default-action Deny \
+    1>/dev/null
+
+# Allow current ip to access the container registry
+echo -e "\n\nAllowing current IP to access the Azure Container Registry..."
+currentIp=$(curl -s ifconfig.me)
+az acr network-rule add \
+    --name $containerRegistryName \
+    --resource-group $resourceGroup \
+    --ip-address $currentIp \
     1>/dev/null
 
 echo ""
@@ -254,6 +323,51 @@ az role assignment create \
     1>/dev/null
 
 echo ""
+
+# Create the Azure SQL Server with AAD Authentication only and admin so to the managed identity
+echo -e "\n\nCreating Azure SQL Server... "
+az sql server create \
+    --name $azsqlServerName \
+    --resource-group $resourceGroup \
+    --location $location \
+    --enable-ad-only-auth \
+    --external-admin-principal-type ServicePrincipal \
+    --external-admin-name $managedIdentityName \
+    --external-admin-sid $miIdObjId \
+    1>/dev/null
+
+azsqlServerId=$(az sql server show \
+    --name $azsqlServerName \
+    --resource-group $resourceGroup \
+    --query id \
+    --output tsv)
+
+echo ""
+
+# Add the private endpoint to the Azure SQL Server
+echo -e "\n\nAdding private endpoint to Azure SQL Server..."
+az network private-endpoint create \
+    --name "pep-$azsqlServerName-gbo-capplab-dev" \
+    --nic-name "nic-pep-$azsqlServerName-gbo-capplab-dev" \
+    --connection-name "sql" \
+    --resource-group $resourceGroup \
+    --vnet-name $vnetName \
+    --subnet $pepSubnet \
+    --private-connection-resource-id $azsqlServerId \
+    --group-id sqlServer \
+    1>/dev/null
+
+echo ""
+
+# Create the Azure SQL Database (BASIC TIER)
+echo -e "\n\nCreating Azure SQL Database..."
+az sql db create \
+    --name $azsqlDbName \
+    --resource-group $resourceGroup \
+    --server $azsqlServerName \
+    --tier Basic \
+    --collation French_CI_AS \
+    1>/dev/null
 
 # Create the Container App Service Environment
 echo -e "\n\nCreating Container App Service Environment..."

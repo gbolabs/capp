@@ -21,6 +21,18 @@ caeName=cae-gbo-capplab-dev
 capIngressName=cap-ingress-gbo-capplab-dev
 capApiName=cap-api-gbo-capplab-dev
 capWebName=cap-web-gbo-capplab-dev
+capCarboneName=cap-carbone-gbo-capplab-dev
+
+# deploy the container app carbone
+az containerapp create --name $capCarboneName \
+    --resource-group $resourceGroup \
+    --image $imagePrefix/carbone:$tag \
+    --registry-server $acr \
+    --registry-identity $miId \
+    --ingress internal --target-port 4000 \
+    --environment $caeName
+
+carboneHostname=$(az containerapp show --name $capCarboneName --resource-group $resourceGroup --query "properties.configuration.ingress.fqdn" --output tsv)
 
 # deploy the container app api 
 az containerapp create --name $capApiName \
@@ -31,8 +43,7 @@ az containerapp create --name $capApiName \
     --ingress internal --target-port 8080 \
     --environment $caeName
 
-apiHostname=$(az containerapp show --name $capApiName --resource-group $resourceGroup --query "[].[properties.ingress.fqdn]" --output tsv)
-echo "API Hostname: $apiHostname"
+apiHostname=$(az containerapp show --name $capApiName --resource-group $resourceGroup --query "properties.configuration.ingress.fqdn" --output tsv)
 
 # deploy the container app web
 az containerapp create --name $capWebName \
@@ -43,7 +54,7 @@ az containerapp create --name $capWebName \
     --ingress internal --target-port 80 \
     --environment $caeName
 
-webHostname=$(az containerapp show --name $capWebName --resource-group $resourceGroup --query "[].[properties.ingress.fqdn]" --output tsv)
+webHostname=$(az containerapp show --name $capWebName --resource-group $resourceGroup --query "properties.configuration.ingress.fqdn" --output tsv)
 echo "Web Hostname: $webHostname"
 
 # deploy the container app ingress
@@ -53,6 +64,16 @@ az containerapp create --name $capIngressName \
     --registry-server $acr \
     --registry-identity $miId \
     --ingress external --target-port 80 \
-    --environment $caeName
-ingressHostname=$(az containerapp show --name $capIngressName --resource-group $resourceGroup --query "[].[properties.ingress.fqdn]" --output tsv)
+    --environment $caeName \
+    --env-vars DEBUG=1 \
+    --env-vars CAPP_API_HOST=$apiHostname \
+    --env-vars CAPP_API_PORT=443 \
+    --env-vars CAPP_API_SCHEME=https \
+    --env-vars CAPP_WEB_HOST=$webHostname \
+    --env-vars CAPP_WEB_PORT=443 \
+    --env-vars CAPP_WEB_SCHEME=https \
+    --env-vars CAPP_CARBONE_HOST=$carboneHostname \
+    --env-vars CAPP_CARBONE_PORT=443 \
+    --env-vars CAPP_CARBONE_SCHEME=https
+ingressHostname=$(az containerapp show --name $capIngressName --resource-group $resourceGroup --query "properties.configuration.ingress.fqdn" --output tsv)
 echo "Ingress Hostname: $ingressHostname"
