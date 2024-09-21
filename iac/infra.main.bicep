@@ -28,6 +28,9 @@ module budget 'br/public:avm/res/consumption/budget:0.3.5' = {
     amount: budgetAmount
     category: 'Cost'
     name: budgetName
+    resourceGroupFilter: [
+      resourceGroup().name
+    ]
     thresholdType: 'Forecasted'
     contactEmails: [
       budgetNotificationEmail
@@ -194,7 +197,7 @@ module nsg 'br/public:avm/res/network/network-security-group:0.5.0' = {
         workspaceResourceId: workspace.outputs.resourceId
         logCategoriesAndGroups:[
           {
-            category: 'allLogs'
+            category: 'NetworkSecurityGroupEvent'
             enabled: true
           }
         ]
