@@ -7,6 +7,8 @@ subnetAdressPrefix=192.168.0.0/24
 subnetPepAdressPrefix=192.168.1.0/24
 vnetName=vnet-gbo-capplab-dev
 subnet=cae
+pepSubnet=peps
+networkSecurityGroupName=nsg-$pepSubnet-gbo-capplab-dev
 
 containerRegistryName=acrgbocaplab
 managedIdentityName=mi-gbo-capplab-dev
@@ -39,10 +41,16 @@ az monitor log-analytics workspace create \
 logAnalyticsWorkspaceId=$(az monitor log-analytics workspace show \
     --resource-group $resourceGroup \
     --workspace-name $logAnalyticsWorkspaceName \
-    --query customerId \
+    --query id \
     --output tsv)
 
 echo $logAnalyticsWorkspaceId
+
+logAnalyticsWorkspaceCustomerId=$(az monitor log-analytics workspace show \
+    --resource-group $resourceGroup \
+    --workspace-name $logAnalyticsWorkspaceName \
+    --query customerId \
+    --output tsv)
 
 logAnalyticsWorkspaceKey=$(az monitor log-analytics workspace get-shared-keys \
     --resource-group $resourceGroup \
@@ -105,7 +113,7 @@ echo ""
 # Create the private endpoint subnet
 echo -e "\n\nCreating private endpoint subnet..."
 az network vnet subnet create \
-    --name "peps" \
+    --name $pepSubnet \
     --resource-group $resourceGroup \
     --vnet-name $vnetName \
     --address-prefix $subnetPepAdressPrefix \
@@ -116,18 +124,10 @@ echo ""
 # Create a network security group for the subnet
 echo -e "\n\nCreating network security group for the subnet..."
 az network nsg create \
-    --name "nsg-peps" \
+    --name $networkSecurityGroupName \
     --resource-group $resourceGroup \
     --location $location \
     1>/dev/null
-
-echo ""
-
-nsgId=$(az network nsg show \
-    --name "nsg-peps" \
-    --resource-group $resourceGroup \
-    --query id \
-    --output tsv)
 
 echo ""
 
@@ -136,7 +136,7 @@ echo -e "\n\nCreating network security group rule for Azure Container Registry..
 az network nsg rule create \
     --name "acr" \
     --resource-group $resourceGroup \
-    --nsg-name "nsg-peps" \
+    --nsg-name $networkSecurityGroupName \
     --priority 100 \
     --source-address-prefixes VirtualNetwork \
     --destination-address-prefixes AzureContainerRegistry \
@@ -192,11 +192,12 @@ echo ""
 # Create the private endpoint for the Azure Container Registry
 echo -e "\n\nCreating private endpoint for Azure Container Registry..."
 az network private-endpoint create \
-    --name $containerRegistryName \
-    --connection-name "pep-$containerRegistryName-gbo-capplab-dev" \
+    --name "pep-$containerRegistryName-gbo-capplab-dev" \
+    --nic-name "nic-pep-$containerRegistryName-gbo-capplab-dev" \
+    --connection-name "acr" \
     --resource-group $resourceGroup \
     --vnet-name $vnetName \
-    --subnet "peps" \
+    --subnet $pepSubnet \
     --private-connection-resource-id $acrId \
     --group-id registry \
     1>/dev/null
@@ -237,10 +238,17 @@ miId=$(az identity show \
     --query id \
     --output tsv)
 
+miIdObjId=$(az identity show \
+    --name $managedIdentityName \
+    --resource-group $resourceGroup \
+    --query principalId \
+    --output tsv)
+
 echo ""
 
 az role assignment create \
-    --assignee $miId \
+    --assignee-object-id $miIdObjId \
+    --assignee-principal-type ServicePrincipal \
     --role acrpull \
     --scope $acrId \
     1>/dev/null
@@ -254,7 +262,7 @@ az containerapp env create \
     --resource-group $resourceGroup \
     --location $location \
     --logs-destination log-analytics \
-    --logs-workspace-id $logAnalyticsWorkspaceId \
+    --logs-workspace-id $logAnalyticsWorkspaceCustomerId \
     --logs-workspace-key $logAnalyticsWorkspaceKey \
     -s $subnetId \
     1>/dev/null
