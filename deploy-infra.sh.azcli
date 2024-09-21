@@ -1,0 +1,268 @@
+location=switzerlandnorth
+resourceGroup=rg-gbo-capplab-dev
+subscription=199fc2c4-a57c-4049-afbe-e1831f4b2f6e
+
+vnetAdressPrefix=192.168.0.0/16
+subnetAdressPrefix=192.168.0.0/24
+subnetPepAdressPrefix=192.168.1.0/24
+vnetName=vnet-gbo-capplab-dev
+subnet=cae
+
+containerRegistryName=acrgbocaplab
+managedIdentityName=mi-gbo-capplab-dev
+
+caeName=cae-gbo-capplab-dev
+
+capIngressName=cap-ingress-gbo-capplab-dev
+capApiName=cap-api-gbo-capplab-dev
+capWebName=cap-web-gbo-capplab-dev
+
+logAnalyticsWorkspaceName=law-gbo-capplab-dev
+
+# Create the resource group
+echo -e "\n\nCreating resource group..."
+az group create \
+    --name $resourceGroup \
+    --location $location \
+    --subscription $subscription \
+    --tags "DeployedBy"="Gautier Boder" "DeployedAt"=$(date +%Y-%m-%d:%H:%M:%S) "DeployedFrom"="Azure CLI" \
+    1>/dev/null
+
+# Create the Log Analytics Workspace
+echo -e "\n\nCreating Log Analytics Workspace..."
+az monitor log-analytics workspace create \
+    --resource-group $resourceGroup \
+    --workspace-name $logAnalyticsWorkspaceName \
+    --location $location \
+    1>/dev/null
+
+logAnalyticsWorkspaceId=$(az monitor log-analytics workspace show \
+    --resource-group $resourceGroup \
+    --workspace-name $logAnalyticsWorkspaceName \
+    --query customerId \
+    --output tsv)
+
+echo $logAnalyticsWorkspaceId
+
+logAnalyticsWorkspaceKey=$(az monitor log-analytics workspace get-shared-keys \
+    --resource-group $resourceGroup \
+    --workspace-name $logAnalyticsWorkspaceName \
+    --query primarySharedKey \
+    --output tsv)
+
+echo ""
+
+# Create the VNet
+echo -e "\n\nCreating Virtual Network..."
+az network vnet create \
+    --name $vnetName \
+    --resource-group $resourceGroup \
+    --location $location \
+    --address-prefixes $vnetAdressPrefix \
+    --subnet-name $subnet \
+    --subnet-prefix $subnetAdressPrefix \
+    1>/dev/null
+
+echo ""
+
+vnetId=$(az network vnet show \
+    --name $vnetName \
+    --resource-group $resourceGroup \
+    --query id \
+    --output tsv)
+
+echo -e "\n\nCreating subnet..."
+az network vnet subnet create \
+    --name $subnet \
+    --resource-group $resourceGroup \
+    --vnet-name $vnetName \
+    --address-prefix $subnetAdressPrefix \
+    --delegations "Microsoft.App/environments" \
+    1>/dev/null
+
+echo ""
+
+subnetId=$(az network vnet subnet show \
+    --name $subnet \
+    --resource-group $resourceGroup \
+    --vnet-name $vnetName \
+    --query id \
+    --output tsv)
+
+echo ""
+
+# Delegate the subnet to Microsoft.App/environments
+echo -e "\n\nDelegating subnet to Microsoft.App/environments..."
+az network vnet subnet update \
+    --name $subnet \
+    --resource-group $resourceGroup \
+    --vnet-name $vnetName \
+    --delegations "Microsoft.App/environments" \
+    1>/dev/null
+
+echo ""
+
+# Create the private endpoint subnet
+echo -e "\n\nCreating private endpoint subnet..."
+az network vnet subnet create \
+    --name "peps" \
+    --resource-group $resourceGroup \
+    --vnet-name $vnetName \
+    --address-prefix $subnetPepAdressPrefix \
+    1>/dev/null
+
+echo ""
+
+# Create a network security group for the subnet
+echo -e "\n\nCreating network security group for the subnet..."
+az network nsg create \
+    --name "nsg-peps" \
+    --resource-group $resourceGroup \
+    --location $location \
+    1>/dev/null
+
+echo ""
+
+nsgId=$(az network nsg show \
+    --name "nsg-peps" \
+    --resource-group $resourceGroup \
+    --query id \
+    --output tsv)
+
+echo ""
+
+# Create a network security group rule to allow traffic from the subnet to the Azure Container Registry
+echo -e "\n\nCreating network security group rule for Azure Container Registry..."
+az network nsg rule create \
+    --name "acr" \
+    --resource-group $resourceGroup \
+    --nsg-name "nsg-peps" \
+    --priority 100 \
+    --source-address-prefixes VirtualNetwork \
+    --destination-address-prefixes AzureContainerRegistry \
+    --destination-port-ranges 443 \
+    --access Allow \
+    --direction Inbound \
+    --protocol Tcp \
+    1>/dev/null
+
+echo ""
+
+# Create the Private DNS Zone for the Azure Container Registry private endpoint
+echo -e "\n\nCreating Private DNS Zone for Azure Container Registry..."
+az network private-dns zone create \
+    --name "privatelink.azurecr.io" \
+    --resource-group $resourceGroup \
+    1>/dev/null
+
+echo ""
+
+# Create the Private DNS Link for the Azure Container Registry private endpoint
+echo -e "\n\nCreating Private DNS Link for Azure Container Registry..."
+az network private-dns link vnet create \
+    --name "acr" \
+    --resource-group $resourceGroup \
+    --zone-name "privatelink.azurecr.io" \
+    --virtual-network $vnetName \
+    --registration-enabled false \
+    1>/dev/null
+
+echo ""
+
+# Create the Azure Container Registry
+echo -e "\n\nCreating Azure Container Registry..."
+az acr create \
+    --name $containerRegistryName \
+    --resource-group $resourceGroup \
+    --location $location \
+    --sku Premium \
+    --admin-enabled true \
+    1>/dev/null
+
+echo ""
+
+acrId=$(az acr show \
+    --name $containerRegistryName \
+    --resource-group $resourceGroup \
+    --query id \
+    --output tsv)
+
+echo ""
+
+# Create the private endpoint for the Azure Container Registry
+echo -e "\n\nCreating private endpoint for Azure Container Registry..."
+az network private-endpoint create \
+    --name $containerRegistryName \
+    --connection-name $containerRegistryName \
+    --resource-group $resourceGroup \
+    --vnet-name $vnetName \
+    --subnet "peps" \
+    --private-connection-resource-id $acrId \
+    --group-id registry \
+    1>/dev/null
+
+echo ""
+
+# Log activity to the Log Analytics Workspace
+echo -e "\n\nLogging activity to Log Analytics Workspace..."
+az monitor diagnostic-settings create \
+    --name $containerRegistryName \
+    --resource $acrId \
+    --resource-group $resourceGroup \
+    --logs '[{"category": "ContainerRegistryRepositoryEvents","enabled": true}]' \
+    --workspace $logAnalyticsWorkspaceId \
+    1>/dev/null
+
+echo ""
+
+# Add the AcrPull Role to the Managed Identity for the Container Registry
+echo -e "\n\nCreating Managed Identity and assigning AcrPull Role..."
+az identity create \
+    --name $managedIdentityName \
+    --resource-group $resourceGroup \
+    --location $location \
+    1>/dev/null
+
+echo ""
+
+acrId=$(az acr show \
+    --name $containerRegistryName \
+    --resource-group $resourceGroup \
+    --query id \
+    --output tsv)
+
+miId=$(az identity show \
+    --name $managedIdentityName \
+    --resource-group $resourceGroup \
+    --query id \
+    --output tsv)
+
+echo ""
+
+az role assignment create \
+    --assignee $miId \
+    --role acrpull \
+    --scope $acrId \
+    1>/dev/null
+
+echo ""
+
+# Create the Container App Service Environment
+echo -e "\n\nCreating Container App Service Environment..."
+az containerapp env create \
+    --name $caeName \
+    --resource-group $resourceGroup \
+    --location $location \
+    --logs-destination log-analytics \
+    --logs-workspace-id $logAnalyticsWorkspaceId \
+    --logs-workspace-key $logAnalyticsWorkspaceKey \
+    -s $subnetId \
+    1>/dev/null
+
+echo ""
+
+caeId=$(az containerapp env show \
+    --name $caeName \
+    --resource-group $resourceGroup \
+    --query id \
+    --output tsv)

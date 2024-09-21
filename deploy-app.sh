@@ -1,7 +1,7 @@
 
 acr=acrgbocaplab.azurecr.io
 imagePrefix=acrgbocaplab.azurecr.io/capplab
-tag=1.4.11
+tag=1.4
 
 location=switzerlandnorth
 resourceGroup=rg-gbo-capplab-dev
@@ -31,7 +31,7 @@ az containerapp create --name $capApiName \
     --ingress internal --target-port 8080 \
     --environment $caeName
 
-apiHostname=$(az containerapp show --name $capApiName --resource-group $resourceGroup --query fqdn --output tsv)
+apiHostname=$(az containerapp show --name $capApiName --resource-group $resourceGroup --query "[].[properties.ingress.fqdn]" --output tsv)
 echo "API Hostname: $apiHostname"
 
 # deploy the container app web
@@ -43,7 +43,7 @@ az containerapp create --name $capWebName \
     --ingress internal --target-port 80 \
     --environment $caeName
 
-webHostname=$(az containerapp show --name $capWebName --resource-group $resourceGroup --query fqdn --output tsv)
+webHostname=$(az containerapp show --name $capWebName --resource-group $resourceGroup --query "[].[properties.ingress.fqdn]" --output tsv)
 echo "Web Hostname: $webHostname"
 
 # deploy the container app ingress
@@ -54,3 +54,5 @@ az containerapp create --name $capIngressName \
     --registry-identity $miId \
     --ingress external --target-port 80 \
     --environment $caeName
+ingressHostname=$(az containerapp show --name $capIngressName --resource-group $resourceGroup --query "[].[properties.ingress.fqdn]" --output tsv)
+echo "Ingress Hostname: $ingressHostname"

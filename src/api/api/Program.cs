@@ -27,6 +27,10 @@ var summaries = new[]
 
 app.MapGet("/api", () => "Hello World!");
 
+app.MapGet("/api/health", () => new { Status = "Healthy" });
+
+app.MapGet("/api/version", () => new { Version = "1.0.0"});
+
 app.MapGet("/api/weatherforecast", () =>
 {
     var forecast =  Enumerable.Range(1, 5).Select(index =>
