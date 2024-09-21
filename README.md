@@ -34,8 +34,12 @@ First, within the bash shell, login against Azure using
 
 Then, in sequence,
 
-- `./deploy-infra.sh.azcli`
-- `./deploy-app.sh`
+- Deploy the Azure Infrastructure (starts from resource groups to the container app environment)
+  `./deploy-infra.sh.azcli`
+- Build the three containers image and pushes them to the ACR
+    `./build.sh`
+- Deploy the container app instances by pulling the images from the container registry
+    `./deploy-app.sh`
 
 You can test the app on the returned url for ingress.
 
