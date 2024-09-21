@@ -193,7 +193,7 @@ echo ""
 echo -e "\n\nCreating private endpoint for Azure Container Registry..."
 az network private-endpoint create \
     --name $containerRegistryName \
-    --connection-name $containerRegistryName \
+    --connection-name "pep-$containerRegistryName-gbo-capplab-dev" \
     --resource-group $resourceGroup \
     --vnet-name $vnetName \
     --subnet "peps" \
