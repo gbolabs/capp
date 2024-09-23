@@ -483,3 +483,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Local file of bicepparam files
+**/*.bicepparam.local
