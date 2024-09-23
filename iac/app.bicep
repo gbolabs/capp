@@ -31,6 +31,11 @@ module cappApi 'br/public:avm/res/app/container-app:0.11.0'={
     name: apiCappName
     location: location
     environmentResourceId: cae.id
+    managedIdentities: {
+      userAssignedResourceIds:[
+        uaid.id
+      ]
+    }
     registries: [
       {
         identity: uaid.id
@@ -39,7 +44,7 @@ module cappApi 'br/public:avm/res/app/container-app:0.11.0'={
     ]
     containers:[
       {
-        image: '${containerImageRepository}/api:${containerImageTag}'
+        image: '${acr.properties.loginServer}/${containerImageRepository}/api:${containerImageTag}'
         name: 'api'
         resources:{
           cpu: json('0.5')
