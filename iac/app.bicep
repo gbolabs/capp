@@ -25,6 +25,36 @@ resource uaid 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' exis
   name: uaidName
 }
 
+module cappCarbone 'br/public:avm/res/app/container-app:0.11.0'={
+  name: format(deployModulePattern, carboneCappName)
+  params:{
+    name: carboneCappName
+    location: location
+    environmentResourceId: cae.id
+    managedIdentities: {
+      userAssignedResourceIds:[
+        uaid.id
+      ]
+    }
+    registries: [
+      {
+        identity: uaid.id
+        server: acr.properties.loginServer
+      }
+    ]
+    containers:[
+      {
+        image: '${acr.properties.loginServer}/${containerImageRepository}/carbone:${containerImageTag}'
+        name: 'carbone'
+        resources:{
+          cpu: json('0.5')
+          memory: '1.0Gi'
+        }
+      }
+    ]
+  }
+}
+
 module cappApi 'br/public:avm/res/app/container-app:0.11.0'={
   name: format(deployModulePattern, apiCappName)
   params:{
@@ -50,8 +80,94 @@ module cappApi 'br/public:avm/res/app/container-app:0.11.0'={
           cpu: json('0.5')
           memory: '1.0Gi'
         }
+        env:[
+          {
+            name: 'CARBONE_URL'
+            value: 'https://${cappCarbone.outputs.fqdn}'
+          }
+        ]
+      }
+    ]
+    initContainersTemplate:[
+      {
+        image: '${acr.properties.loginServer}/${containerImageRepository}/alpine:${containerImageTag}'
+        name: 'init'
+        resources:{
+          cpu: json('0.5')
+          memory: '1.0Gi'
+        }
       }
     ]
   }
 }
 
+module cappWeb 'br/public:avm/res/app/container-app:0.11.0'={
+  name: format(deployModulePattern, webCappName)
+  params:{
+    name: webCappName
+    location: location
+    environmentResourceId: cae.id
+    managedIdentities: {
+      userAssignedResourceIds:[
+        uaid.id
+      ]
+    }
+    registries: [
+      {
+        identity: uaid.id
+        server: acr.properties.loginServer
+      }
+    ]
+    containers:[
+      {
+        image: '${acr.properties.loginServer}/${containerImageRepository}/web:${containerImageTag}'
+        name: 'web'
+        resources:{
+          cpu: json('0.5')
+          memory: '1.0Gi'
+        }
+      }
+    ]
+  }
+}
+
+module cappIngress 'br/public:avm/res/app/container-app:0.11.0' = {
+  name: format(deployModulePattern, ingressCappName)
+  params:{
+    name: ingressCappName
+    location: location
+    environmentResourceId: cae.id
+    managedIdentities: {
+      userAssignedResourceIds:[
+        uaid.id
+      ]
+    }
+    registries: [
+      {
+        identity: uaid.id
+        server: acr.properties.loginServer
+      }
+    ]
+    containers:[
+      {
+        image: '${acr.properties.loginServer}/${containerImageRepository}/ingress:${containerImageTag}'
+        name: 'ingress'
+        resources:{
+          cpu: json('0.5')
+          memory: '1.0Gi'
+        }
+        env:[
+        {name: 'CAPP_API_HOST', value: cappApi.outputs.fqdn}
+        {name: 'CAPP_API_PORT', value: '443'}
+        {name: 'CAPP_API_SCHEME', value: 'https'}
+        {name: 'CAPP_WEB_HOST', value: cappWeb.outputs.fqdn}
+        {name: 'CAPP_WEB_PORT', value: '443'}
+        {name: 'CAPP_WEB_SCHEME', value: 'https'}
+        {name: 'CAPP_CARBONE_HOST', value: cappCarbone.outputs.fqdn}
+        {name: 'CAPP_CARBONE_PORT', value: '443'}
+        {name: 'CAPP_CARBONE_SCHEME', value: 'https'}
+        ]
+      }
+    ]
+  }
+}
