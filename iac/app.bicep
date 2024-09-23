@@ -31,6 +31,9 @@ module cappCarbone 'br/public:avm/res/app/container-app:0.11.0'={
     name: carboneCappName
     location: location
     environmentResourceId: cae.id
+    disableIngress:false
+    ingressTargetPort:4000
+    ingressTransport:'http'
     managedIdentities: {
       userAssignedResourceIds:[
         uaid.id
@@ -66,6 +69,9 @@ module cappApi 'br/public:avm/res/app/container-app:0.11.0'={
         uaid.id
       ]
     }
+    disableIngress:false
+    ingressTargetPort:8080
+    ingressTransport:'http'
     registries: [
       {
         identity: uaid.id
@@ -112,6 +118,9 @@ module cappWeb 'br/public:avm/res/app/container-app:0.11.0'={
         uaid.id
       ]
     }
+    disableIngress:false
+    ingressTargetPort:80
+    ingressTransport:'http'
     registries: [
       {
         identity: uaid.id
@@ -142,6 +151,9 @@ module cappIngress 'br/public:avm/res/app/container-app:0.11.0' = {
         uaid.id
       ]
     }
+    disableIngress:true
+    ingressTargetPort:80
+    ingressTransport:'http'
     registries: [
       {
         identity: uaid.id
