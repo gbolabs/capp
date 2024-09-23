@@ -4,24 +4,23 @@ imagePrefix=acrgbocaplab.azurecr.io/capplab
 tag=1.4
 
 location=switzerlandnorth
-resourceGroup=rg-gbo-capplab-dev
-subscription=199fc2c4-a57c-4049-afbe-e1831f4b2f6e
+resourceGroup=rg-capplab-dev
 
 vnetAdressPrefix=192.168.0.0/16
 subnetAdressPrefix=192.168.0.0/24
-vnetName=vnet-gbo-capplab-dev
+vnetName=vnet-capplab-dev
 subnet=cae
 
 containerRegistryName=acrgbocaplab
-managedIdentityName=mi-gbo-capplab-dev
+managedIdentityName=mi-capplab-dev
 miId=$(az identity show --name $managedIdentityName --resource-group $resourceGroup --query id --output tsv)
 
-caeName=cae-gbo-capplab-dev
+caeName=cae-capplab-dev
 
-capIngressName=cap-ingress-gbo-capplab-dev
-capApiName=cap-api-gbo-capplab-dev
-capWebName=cap-web-gbo-capplab-dev
-capCarboneName=cap-carbone-gbo-capplab-dev
+capIngressName=cap-ingress-capplab-dev
+capApiName=cap-api-capplab-dev
+capWebName=cap-web-capplab-dev
+capCarboneName=cap-carbone-capplab-dev
 
 # deploy the container app carbone
 az containerapp create --name $capCarboneName \

@@ -1,31 +1,30 @@
 location=switzerlandnorth
-resourceGroup=rg-gbo-capplab-dev
-subscription=199fc2c4-a57c-4049-afbe-e1831f4b2f6e
+resourceGroup=rg-capplab-dev
 
 vnetAdressPrefix=192.168.0.0/16
 subnetAdressPrefix=192.168.0.0/24
 vnetPepAdressPrefix=10.0.1.0/16
 subnetPepAdressPrefix=10.0.1.0/24
-vnetName=vnet-cae-gbo-capplab-dev
-vnetPepName=vnet-pep-gbo-capplab-dev
+vnetName=vnet-cae-capplab-dev
+vnetPepName=vnet-pep-capplab-dev
 subnet=cae
 pepSubnet=peps
-networkSecurityGroupName=nsg-$pepSubnet-gbo-capplab-dev
+networkSecurityGroupName=nsg-$pepSubnet-capplab-dev
 
 containerRegistryName=acrgbocaplab
-managedIdentityName=mi-gbo-capplab-dev
+managedIdentityName=mi-capplab-dev
 
-caeName=cae-gbo-capplab-dev
+caeName=cae-capplab-dev
 
-capIngressName=cap-ingress-gbo-capplab-dev
-capApiName=cap-api-gbo-capplab-dev
-capWebName=cap-web-gbo-capplab-dev
+capIngressName=cap-ingress-capplab-dev
+capApiName=cap-api-capplab-dev
+capWebName=cap-web-capplab-dev
 flowLogStorageAccountName=stgbocapplabflowlogsdev
 
-logAnalyticsWorkspaceName=law-gbo-capplab-dev
+logAnalyticsWorkspaceName=law-capplab-dev
 
-azsqlServerName=sql-gbo-capplab-dev
-azsqlDbName=db-gbo-capplab-dev
+azsqlServerName=sql-capplab-dev
+azsqlDbName=db-capplab-dev
 
 # Create the resource group
 echo -e "\n\nCreating resource group..."
@@ -33,7 +32,7 @@ az group create \
     --name $resourceGroup \
     --location $location \
     --subscription $subscription \
-    --tags "DeployedBy"="Gautier Boder" "DeployedAt"=$(date +%Y-%m-%d:%H:%M:%S) "DeployedFrom"="Azure CLI" \
+    --tags "DeployedAt"=$(date +%Y-%m-%d:%H:%M:%S) "DeployedFrom"="Azure CLI" \
     1>/dev/null
 
 # Create the Log Analytics Workspace
@@ -283,8 +282,8 @@ echo ""
 # Create the private endpoint for the Azure Container Registry
 echo -e "\n\nCreating private endpoint for Azure Container Registry..."
 az network private-endpoint create \
-    --name "pep-$containerRegistryName-gbo-capplab-dev" \
-    --nic-name "nic-pep-$containerRegistryName-gbo-capplab-dev" \
+    --name "pep-$containerRegistryName-capplab-dev" \
+    --nic-name "nic-pep-$containerRegistryName-capplab-dev" \
     --connection-name "acr" \
     --resource-group $resourceGroup \
     --vnet-name $vnetName \
@@ -369,8 +368,8 @@ echo ""
 # Add the private endpoint to the Azure SQL Server
 echo -e "\n\nAdding private endpoint to Azure SQL Server..."
 az network private-endpoint create \
-    --name "pep-$azsqlServerName-gbo-capplab-dev" \
-    --nic-name "nic-pep-$azsqlServerName-gbo-capplab-dev" \
+    --name "pep-$azsqlServerName-capplab-dev" \
+    --nic-name "nic-pep-$azsqlServerName-capplab-dev" \
     --connection-name "sql" \
     --resource-group $resourceGroup \
     --vnet-name $vnetName \

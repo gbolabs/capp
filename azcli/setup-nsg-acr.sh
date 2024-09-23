@@ -1,26 +1,26 @@
 #!/bin/bash
 location=switzerlandnorth
-resourceGroup=rg-gbo-capplab-dev
+resourceGroup=rg-capplab-dev
 subscription=199fc2c4-a57c-4049-afbe-e1831f4b2f6e
 
 vnetAdressPrefix=192.168.0.0/16
 subnetAdressPrefix=192.168.0.0/24
 subnetPepAdressPrefix=192.168.1.0/24
-vnetName=vnet-gbo-capplab-dev
+vnetName=vnet-capplab-dev
 subnet=cae
 pepSubnet=peps
-networkSecurityGroupName=nsg-$pepSubnet-gbo-capplab-dev
+networkSecurityGroupName=nsg-$pepSubnet-capplab-dev
 
 containerRegistryName=acrgbocaplab
-managedIdentityName=mi-gbo-capplab-dev
+managedIdentityName=mi-capplab-dev
 
-caeName=cae-gbo-capplab-dev
+caeName=cae-capplab-dev
 
-capIngressName=cap-ingress-gbo-capplab-dev
-capApiName=cap-api-gbo-capplab-dev
-capWebName=cap-web-gbo-capplab-dev
+capIngressName=cap-ingress-capplab-dev
+capApiName=cap-api-capplab-dev
+capWebName=cap-web-capplab-dev
 
-logAnalyticsWorkspaceName=law-gbo-capplab-dev
+logAnalyticsWorkspaceName=law-capplab-dev
 
 # Check if the correct number of arguments is provided
 if [ "$#" -ne 1 ]; then
