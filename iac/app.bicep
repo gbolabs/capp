@@ -31,12 +31,12 @@ module cappApi 'br/public:avm/res/app/container-app:0.11.0'={
     name: apiCappName
     location: location
     environmentResourceId: cae.id
-    // registries: [
-    //   {
-    //     identity: uaid.id
-    //     server: acr.properties.loginServer
-    //   }
-    // ]
+    registries: [
+      {
+        identity: uaid.id
+        server: acr.properties.loginServer
+      }
+    ]
     containers:[
       {
         image: '${containerImageRepository}/api:${containerImageTag}'
