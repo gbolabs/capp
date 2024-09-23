@@ -26,20 +26,16 @@ resource uaid 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' exis
   name: uaidName
 }
 
-module cappApi 'br/public:avm/res/app/container-app:0.9.0'={
+module cappApi 'br/public:avm/res/app/container-app:0.11.0'={
   name: format(deployModulePattern, apiCappName)
   params:{
     name: apiCappName
     location: location
     environmentResourceId: cae.id
-    managedIdentities:{
-      userAssignedResourceIds:[
-        uaid.id
-      ]
-    }
     registries: [
       {
-        registry: acr.id
+        identity: uaid.id
+        server: acr.properties.loginServer
       }
     ]
     containers:[
@@ -60,3 +56,4 @@ module cappApi 'br/public:avm/res/app/container-app:0.9.0'={
     ]
   }
 }
+
