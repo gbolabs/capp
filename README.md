@@ -41,13 +41,13 @@ The BICEP templates are located within `iac/`-directory where the `infra.main.bi
 
 ```bash
 az login -t {tenant-name | tenant-id}
-az deployment group create --name capp-infra --template-file infra.main.bicep --parameters infra.main.bicepparam
+az deployment group create -g {rg} --name capp-infra --template-file infra.main.bicep --parameters infra.main.bicepparam
 ```
 
 #### App
 ```bash
 az login -t {tenant-name | tenant-id}
-az deployment group create --name capp-apps --template-file app.bicep --parameters app.bicepparam
+az deployment group create -g {rg} --name capp-apps --template-file app.bicep --parameters app.bicepparam
 ```
 
 
