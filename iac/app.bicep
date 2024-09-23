@@ -1,7 +1,6 @@
 param location string = resourceGroup().location
 param env string = 'dev'
 param dashedNameSuffix string = 'capplab-${env}-01'
-param blockNameSuffix string = 'capplabgbo${env}01'
 
 param caeEnvName string
 param acrName string
@@ -9,7 +8,7 @@ param uaidName string
 param containerImageRepository string
 param containerImageTag string
 
-var deployModulePattern = 'infra.main-module-{0}'
+var deployModulePattern = 'capp-module-{0}'
 var apiCappName = format('cap-api-${dashedNameSuffix}')
 var webCappName = format('cap-web-${dashedNameSuffix}')
 var carboneCappName = format('cap-carbone-${dashedNameSuffix}')
@@ -43,14 +42,8 @@ module cappApi 'br/public:avm/res/app/container-app:0.11.0'={
         image: '$(containerImageRepository)/api:$(containerImageTag)'
         name: 'api'
         resources:{
-          requests:{
-            cpu: '0.1'
-            memory: '128Mi'
-          }
-          limits:{
-            cpu: '0.5'
-            memory: '256Mi'
-          }
+          cpu: json('0.5')
+          memory: '1.0Gi'
         }
       }
     ]
