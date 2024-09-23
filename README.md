@@ -34,6 +34,26 @@ First, within the bash shell, login against Azure using
 
 Then, in sequence,
 
+### Using BICEP Template
+The BICEP templates are located within `iac/`-directory where the `infra.main.bicep` and `infra.main.bicepparam` files create the initial infrastructure.
+
+#### Infrastructure
+
+```bash
+az login -t {tenant-name | tenant-id}
+az deployment group create --name capp-infra --template-file infra.main.bicep --parameters infra.main.bicepparam
+```
+
+#### App
+```bash
+az login -t {tenant-name | tenant-id}
+az deployment group create --name capp-apps --template-file app.bicep --parameters app.bicepparam
+```
+
+
+### Using Azure CLI
+This variant doesn't support, yet, the database dbupdate sidecar. Scripts are located within the `azcli` directory.
+
 - Deploy the Azure Infrastructure (starts from resource groups to the container app environment)
   `./deploy-infra.sh.azcli`
 - Build the three containers image and pushes them to the ACR
@@ -42,6 +62,8 @@ Then, in sequence,
     `./deploy-app.sh`
 
 You can test the app on the returned url for ingress.
+
+#### Enable NSG
 
 You can block the communication between the container apps and the container registry by using the
 
