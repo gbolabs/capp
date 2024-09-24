@@ -34,6 +34,8 @@ module cappCarbone 'br/public:avm/res/app/container-app:0.11.0'={
     disableIngress:false
     ingressTargetPort:4000
     ingressTransport:'http'
+    scaleMinReplicas:1  
+    scaleMaxReplicas:2
     managedIdentities: {
       userAssignedResourceIds:[
         uaid.id
@@ -52,7 +54,7 @@ module cappCarbone 'br/public:avm/res/app/container-app:0.11.0'={
         resources:{
           cpu: json('0.5')
           memory: '1.0Gi'
-        }
+        } 
       }
     ]
   }
@@ -71,6 +73,8 @@ module cappApi 'br/public:avm/res/app/container-app:0.11.0'={
     }
     disableIngress:false
     ingressTargetPort:8080
+    scaleMinReplicas:1  
+    scaleMaxReplicas:2
     ingressTransport:'http'
     registries: [
       {
@@ -121,6 +125,8 @@ module cappWeb 'br/public:avm/res/app/container-app:0.11.0'={
     disableIngress:false
     ingressTargetPort:80
     ingressTransport:'http'
+    scaleMinReplicas:1  
+    scaleMaxReplicas:2
     registries: [
       {
         identity: uaid.id
@@ -154,6 +160,8 @@ module cappIngress 'br/public:avm/res/app/container-app:0.11.0' = {
     disableIngress:true
     ingressTargetPort:80
     ingressTransport:'http'
+    scaleMinReplicas:1  
+    scaleMaxReplicas:2
     registries: [
       {
         identity: uaid.id
