@@ -486,3 +486,6 @@ $RECYCLE.BIN/
 
 # Local file of bicepparam files
 **/*.bicepparam.local
+
+# NPM dist folder
+**/dist*
