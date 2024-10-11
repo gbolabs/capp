@@ -1,4 +1,4 @@
-FROM --platform=amd64 nginx:1.21
+FROM --platform=amd64 nginx:1
 RUN rm -rf /usr/share/nginx/html/*
 
 # Copy the custom Nginx configuration

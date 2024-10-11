@@ -9,6 +9,11 @@ param budgetNotificationEmail string
 
 
 var deployModulePattern = 'infra.main-module-{0}'
+
+var clientVnetAddressPrefix = '192.168.200.0/24'
+var clientSubnetAddressPrefix = '192.168.200.0/27'
+var clientSubnetName = 'client-subnet'
+
 var caeVnetAddressPrefix = '192.168.0.0/20'
 var caeSubnetAddressPrefix = '192.168.0.0/23'
 var caeSubnetName = 'cae-subnet'
@@ -77,6 +82,35 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.13.2' = {
 }
 
 // Virtual network structure
+module clientVNet 'br/public:avm/res/network/virtual-network:0.4.0' = {
+  name: format(deployModulePattern, 'vnet-client-${dashedNameSuffix}')
+  params: {
+    // Required parameters
+    addressPrefixes: [
+      clientVnetAddressPrefix
+    ]
+    name: format('vnet-client-${dashedNameSuffix}')
+    // Non-required parameters
+    location: location
+    subnets: [
+      {
+        name: clientSubnetName
+        addressPrefix: clientSubnetAddressPrefix
+      }
+    ]
+    peerings: [
+      {
+        name: 'client-cae-peer'
+        remoteVirtualNetworkResourceId: caeVNet.outputs.resourceId
+        allowVirtualNetworkAccess: true
+        remotePeeringAllowVirtualNetworkAccess: true
+        remotePeeringEnabled: true
+        remotePeeringName: 'cae-client-peer'
+      }
+    ]
+  }
+}
+
 module caeVNet 'br/public:avm/res/network/virtual-network:0.4.0' = {
   name: format(deployModulePattern, 'vnet-cae-${dashedNameSuffix}')
   params: {
@@ -215,55 +249,6 @@ module userAssignedIdentity 'br/public:avm/res/managed-identity/user-assigned-id
   }
 }
 
-var containerRegistryName = format('acr${blockNameSuffix}')
-module containerRegistry 'br/public:avm/res/container-registry/registry:0.5.1' = {
-  name: format(deployModulePattern, containerRegistryName)
-  params: {
-    name: containerRegistryName
-    location: location
-    acrSku: 'Premium'
-    acrAdminUserEnabled:false
-    anonymousPullEnabled:false
-    azureADAuthenticationAsArmPolicyStatus: 'enabled'
-    privateEndpoints: [
-      {
-        name: format('pep-${containerRegistryName}')
-        privateDnsZoneGroup: {
-          privateDnsZoneGroupConfigs: [
-            {
-              name: privateDnsZoneAcrName
-              privateDnsZoneResourceId: privateDnsZoneAcr.outputs.resourceId
-            }
-          ]
-        }
-        subnetResourceId: pepVNet.outputs.subnetResourceIds[0]
-      }
-    ]
-    exportPolicyStatus:	'enabled'
-    publicNetworkAccess: 'Enabled'
-    networkRuleSetDefaultAction: 'Deny'
-    networkRuleBypassOptions: 'None'
-    networkRuleSetIpRules:[
-      {
-        action: 'Allow'
-        value: remoteIp
-      }
-    ]
-    roleAssignments: [
-      {
-        principalType: 'ServicePrincipal'
-        principalId: userAssignedIdentity.outputs.principalId
-        roleDefinitionIdOrName: 'AcrPull'
-      }
-      {
-        principalType: 'User'
-        principalId: pushUserId
-        roleDefinitionIdOrName: 'AcrPush'
-      }
-    ]
-  }
-}
-
 // var sqlSrvName = format('sqlsrv-${dashedNameSuffix}')
 // var dbName = format('db-${dashedNameSuffix}')
 // module sqlSrvRes 'br/public:avm/res/sql/server:0.8.0' = {
@@ -311,8 +296,40 @@ module managedEnvironment 'br/public:avm/res/app/managed-environment:0.8.0' = {
     appInsightsConnectionString: appi.outputs.connectionString
     infrastructureSubnetId: caeVNet.outputs.subnetResourceIds[0]
     infrastructureResourceGroupName: resourceGroup().name
+    internal: true
     enableTelemetry: true
     logsDestination: 'log-analytics'
+  }
+}
+
+var vmClientName = format('vm-client-${dashedNameSuffix}')
+module vmClient 'br/public:avm/res/compute/virtual-machine:0.7.0' = {
+  name: format(deployModulePattern, vmClientName)
+  params: {
+    name: vmClientName
+    adminUsername: 'admin'
+    imageReference: {
+      offer: 'Windows10'
+      publisher: 'MicrosoftWindowsDesktop'
+      sku: '20h2-evd'
+      version: 'latest'
+    }
+    nicConfigurations: [
+      {
+        name: 'nic-config'
+        subnetId: clientVNet.outputs.subnetResourceIds[0]
+        privateIpAddressVersion: 'IPv4'
+        privateIpAllocationMethod: 'Dynamic'
+      }
+    ]
+    osDisk: {
+      managedDisk: {
+        storageAccountType: 'Standard_LRS'
+      }
+    }
+    osType: 'Windows'
+    vmSize: 'Standard_D2s_v3'
+    zone: 0
   }
 }
 

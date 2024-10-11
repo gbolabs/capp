@@ -39,9 +39,24 @@ The BICEP templates are located within `iac/`-directory where the `infra.main.bi
 
 #### Infrastructure
 
+The infrastructure is spread between two subscriptions. One, centralized, where the container registry is located, another where the application's resources are deployed. Therefore they are deployed using two distinctives bicep templates.
+
+##### Container Registry
+```bash
+az login -t {tenant-name | tenant-id}
+az deployment group create -g {rg} --name capp-acr --template-file acr.main.biceo --parameter acr.main.bicepparam
+```
+
+##### Application Resources
 ```bash
 az login -t {tenant-name | tenant-id}
 az deployment group create -g {rg} --name capp-infra --template-file infra.main.bicep --parameters infra.main.bicepparam
+```
+
+Once the application resources gets deployed, the user-assigned managed identity must be granted the `AcrPull` Role on the centralized Container Registry.
+
+```bash
+
 ```
 
 #### App
