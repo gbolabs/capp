@@ -1,5 +1,5 @@
-acr=acrgbocaplab.azurecr.io
-imagePrefix=acrgbocaplab.azurecr.io/capplab
+acr=acrcapplabgbodev01.azurecr.io
+imagePrefix=$acr/capplab
 tag=1.4
 
 # authenticate to the Azure Container Registry
@@ -30,3 +30,10 @@ docker push $imagePrefix/ingress:latest
 echo "Building the carbone using az acr build to avoid transferring 2GB of data"
 echo "================"
 az acr build --registry $acr --image $imagePrefix/carbone:$tag -f ./src/carbone/Dockerfile ./src/carbone
+
+# Build the azcli
+echo "Building the azcli"
+echo "================"
+docker build -t $imagePrefix/azcli:$tag -t $imagePrefix/azcli:$tag -f ./src/azcli/Dockerfile ./src/azcli
+docker push $imagePrefix/azcli:$tag
+docker push $imagePrefix/azcli:latest

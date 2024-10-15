@@ -4,8 +4,6 @@ param dashedNameSuffix string = 'capplab-${env}-01'
 param blockNameSuffix string = 'capplabgbo${env}01'
 param remoteIp string
 param pushUserId string
-param budgetAmount int
-param budgetNotificationEmail string
 
 var deployModulePattern = 'infra.main-module-{0}'
 var caeVnetAddressPrefix = '192.168.0.0/20'
@@ -18,24 +16,6 @@ var pepSubnetName = 'pep-subnet'
 
 var nonRegionalLocation = 'global'
 
-// budget
-var budgetName = format('budget-${dashedNameSuffix}')
-module budget 'br/public:avm/res/consumption/budget:0.3.5' = {
-  name: format(deployModulePattern, budgetName)
-  scope: subscription(subscription().subscriptionId)
-  params: {
-    amount: budgetAmount
-    category: 'Cost'
-    name: budgetName
-    resourceGroupFilter: [
-      resourceGroup().name
-    ]
-    thresholdType: 'Forecasted'
-    contactEmails: [
-      budgetNotificationEmail
-    ]
-  }
-}
 
 // Deploy log analytics workspace
 var logWaName = format('logwa-${dashedNameSuffix}')
@@ -87,6 +67,18 @@ module kv 'br/public:avm/res/key-vault/vault:0.10.0' = {
       {
         name: format('pep-${kvName}')
         subnetResourceId: pepVNet.outputs.subnetResourceIds[0]
+      }
+    ]
+     roleAssignments: [
+      {
+        principalType: 'User'
+        principalId: pushUserId
+        roleDefinitionIdOrName: 'Key Vault Secrets Officer'
+      }
+      {
+        principalType: 'ServicePrincipal'
+        principalId: userAssignedIdentity.outputs.principalId
+        roleDefinitionIdOrName: 'Secrets User'
       }
     ]
   }
@@ -144,6 +136,7 @@ module pepVNet 'br/public:avm/res/network/virtual-network:0.4.0' = {
 // Private DNS zone
 var privateDnsZoneAcrName = 'privatelink${environment().suffixes.acrLoginServer}'
 var sqlServerPrivateDnsZone = 'privatelink${environment().suffixes.sqlServerHostname}'
+var kvPrivateDnsZone = 'privatelink${environment().suffixes.keyvaultDns}'
 module privateDnsZoneAcr 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
   name: format(deployModulePattern, 'dns-${privateDnsZoneAcrName}')
   params: {
@@ -185,7 +178,7 @@ module privateDnsZoneSql 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
 module privateDnsZoneKv 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
   name: format(deployModulePattern, 'dns-${kvName}')
   params: {
-    name: kvName
+    name: kvPrivateDnsZone
     location: nonRegionalLocation
     virtualNetworkLinks: [
       {

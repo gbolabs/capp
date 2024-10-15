@@ -12,7 +12,8 @@ var deployModulePattern = 'capp-module-{0}'
 var apiCappName = format('cap-api-${dashedNameSuffix}')
 var webCappName = format('cap-web-${dashedNameSuffix}')
 var carboneCappName = format('cap-carbone-${dashedNameSuffix}')
-var ingressCappName = format('ingress-${dashedNameSuffix}')
+var ingressCappName = format('cap-ingress-${dashedNameSuffix}')
+var azcliCappName = format('cap-azcli-${dashedNameSuffix}')
 
 
 resource cae 'Microsoft.App/managedEnvironments@2024-03-01' existing = {
@@ -187,6 +188,41 @@ module cappIngress 'br/public:avm/res/app/container-app:0.11.0' = {
         {name: 'CAPP_CARBONE_PORT', value: '443'}
         {name: 'CAPP_CARBONE_SCHEME', value: 'https'}
         ]
+      }
+    ]
+  }
+}
+
+module cappAzcli 'br/public:avm/res/app/container-app:0.11.0' = {
+  name: format(deployModulePattern, azcliCappName)
+  params:{
+    name: azcliCappName
+    location: location
+    environmentResourceId: cae.id
+    managedIdentities: {
+      userAssignedResourceIds:[
+        uaid.id
+      ]
+    }
+    disableIngress:true
+    ingressTargetPort:80
+    ingressTransport:'http'
+    scaleMinReplicas:1  
+    scaleMaxReplicas:2
+    registries: [
+      {
+        identity: uaid.id
+        server: acr.properties.loginServer
+      }
+    ]
+    containers:[
+      {
+        image: '${acr.properties.loginServer}/${containerImageRepository}/azcli:${containerImageTag}'
+        name: 'azcli'
+        resources:{
+          cpu: json('0.5')
+          memory: '1.0Gi'
+        }
       }
     ]
   }
