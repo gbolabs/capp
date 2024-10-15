@@ -1,4 +1,6 @@
-# Check if all required environment variables are set
+#!/bin/bash
+
+# Check if all required  environment variables are set
 if [ -z "$TENANT_ID" ]; then
     echo "TENANT_ID is not set"
     exit 1
@@ -26,7 +28,8 @@ fi
  
 echo "Azure Login"
 # Login to Azure
-az login -t $TENANT_ID --identity --username $IDENTITY_CLIENT_ID
+az login --identity --username $IDENTITY_CLIENT_ID --allow-no-subscriptions --debug
+az account show
 az account set --subscription $SUBSCRIPTION_ID
  
 # Get keyvault access token

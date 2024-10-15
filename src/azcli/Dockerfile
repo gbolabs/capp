@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM --platform=amd64 ubuntu:20.04
 
 # Install the Azure CLI
 RUN apt-get update && apt-get install -y curl && \
