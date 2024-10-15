@@ -7,7 +7,6 @@ param pushUserId string
 param budgetAmount int
 param budgetNotificationEmail string
 
-
 var deployModulePattern = 'infra.main-module-{0}'
 var caeVnetAddressPrefix = '192.168.0.0/20'
 var caeSubnetAddressPrefix = '192.168.0.0/23'
@@ -73,6 +72,23 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.13.2' = {
     location: location
     accessTier: 'Hot'
     skuName: 'Standard_LRS'
+  }
+}
+
+var kvName = format('kv-${blockNameSuffix}')
+module kv 'br/public:avm/res/key-vault/vault:0.10.0' = {
+  name: format(deployModulePattern, kvName)
+  params: {
+    name: kvName
+    location: location
+    sku: 'standard'
+    enableRbacAuthorization: true
+    privateEndpoints: [
+      {
+        name: format('pep-${kvName}')
+        subnetResourceId: pepVNet.outputs.subnetResourceIds[0]
+      }
+    ]
   }
 }
 
@@ -166,6 +182,21 @@ module privateDnsZoneSql 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
     ]
   }
 }
+module privateDnsZoneKv 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
+  name: format(deployModulePattern, 'dns-${kvName}')
+  params: {
+    name: kvName
+    location: nonRegionalLocation
+    virtualNetworkLinks: [
+      {
+        virtualNetworkResourceId: pepVNet.outputs.resourceId
+        location: nonRegionalLocation
+        name: 'pep-vnet-link'
+      }
+      { virtualNetworkResourceId: caeVNet.outputs.resourceId, location: nonRegionalLocation, name: 'cae-vnet-link' }
+    ]
+  }
+}
 
 // Network security group
 var nsgName = format('nsg-${dashedNameSuffix}')
@@ -191,11 +222,11 @@ module nsg 'br/public:avm/res/network/network-security-group:0.5.0' = {
         }
       }
     ]
-    diagnosticSettings:[
+    diagnosticSettings: [
       {
         name: 'nsg-diag'
         workspaceResourceId: workspace.outputs.resourceId
-        logCategoriesAndGroups:[
+        logCategoriesAndGroups: [
           {
             category: 'NetworkSecurityGroupEvent'
             enabled: true
@@ -222,8 +253,8 @@ module containerRegistry 'br/public:avm/res/container-registry/registry:0.5.1' =
     name: containerRegistryName
     location: location
     acrSku: 'Premium'
-    acrAdminUserEnabled:false
-    anonymousPullEnabled:false
+    acrAdminUserEnabled: false
+    anonymousPullEnabled: false
     azureADAuthenticationAsArmPolicyStatus: 'enabled'
     privateEndpoints: [
       {
@@ -239,11 +270,11 @@ module containerRegistry 'br/public:avm/res/container-registry/registry:0.5.1' =
         subnetResourceId: pepVNet.outputs.subnetResourceIds[0]
       }
     ]
-    exportPolicyStatus:	'enabled'
+    exportPolicyStatus: 'enabled'
     publicNetworkAccess: 'Enabled'
     networkRuleSetDefaultAction: 'Deny'
     networkRuleBypassOptions: 'None'
-    networkRuleSetIpRules:[
+    networkRuleSetIpRules: [
       {
         action: 'Allow'
         value: remoteIp
