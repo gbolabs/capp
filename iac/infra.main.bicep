@@ -16,7 +16,6 @@ var pepSubnetName = 'pep-subnet'
 
 var nonRegionalLocation = 'global'
 
-
 // Not the required RBAC roles to deploy the resources
 // var bdgName = 'bdg-${dashedNameSuffix}-40CHF'
 // module bdg 'br/public:avm/res/consumption/budget:0.3.5' = {
@@ -44,7 +43,6 @@ var nonRegionalLocation = 'global'
 //     ]
 //   }
 // }
-
 
 // Deploy log analytics workspace
 var logWaName = format('logwa-${dashedNameSuffix}')
@@ -92,7 +90,7 @@ module kv 'br/public:avm/res/key-vault/vault:0.10.0' = {
     location: location
     sku: 'standard'
     enableRbacAuthorization: true
-    publicNetworkAccess: 'Disabled'
+    publicNetworkAccess: 'Enabled'
     networkAcls: {
       bypass: 'AzureServices'
       defaultAction: 'Deny'
@@ -109,16 +107,18 @@ module kv 'br/public:avm/res/key-vault/vault:0.10.0' = {
         subnetResourceId: pepVNet.outputs.subnetResourceIds[0]
       }
     ]
-     roleAssignments: [
+    roleAssignments: [
       {
         principalType: 'User'
         principalId: pushUserId
-        roleDefinitionIdOrName: 'Key Vault Secrets Officer'
+        roleDefinitionIdOrName: '/providers/Microsoft.Authorization/roleDefinitions/b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
+        // roleDefinitionIdOrName: 'Key Vault Secrets Officer'
       }
       {
         principalType: 'ServicePrincipal'
         principalId: userAssignedIdentity.outputs.principalId
-        roleDefinitionIdOrName: 'Secrets User'
+        roleDefinitionIdOrName: '/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6'
+        // roleDefinitionIdOrName: 'Key Vault Secrets User'
       }
     ]
   }
