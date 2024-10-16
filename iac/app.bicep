@@ -105,16 +105,16 @@ module cappApi 'br/public:avm/res/app/container-app:0.11.0' = {
         ]
       }
     ]
-    initContainersTemplate: [
-      {
-        image: 'docker.io/alpine:latest'
-        name: 'init'
-        resources: {
-          cpu: json('0.5')
-          memory: '1.0Gi'
-        }
-      }
-    ]
+    // initContainersTemplate: [
+    //   {
+    //     image: 'docker.io/alpine:latest'
+    //     name: 'init'
+    //     resources: {
+    //       cpu: json('0.5')
+    //       memory: '1.0Gi'
+    //     }
+    //   }
+    // ]
   }
 }
 
