@@ -1,6 +1,6 @@
-acr=acrcapplabgbodev01.azurecr.io
+acr=acrcapplabgbodev02.azurecr.io
 imagePrefix=$acr/capplab
-tag=1.12
+tag=1.13
 
 # authenticate to the Azure Container Registry
 az acr login --name $acr

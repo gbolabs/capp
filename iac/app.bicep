@@ -1,6 +1,6 @@
 param location string = resourceGroup().location
 param env string = 'dev'
-param dashedNameSuffix string = 'capplab-${env}-01'
+param dashedNameSuffix string = 'capplab-${env}-02'
 
 param caeEnvName string
 param acrName string

@@ -1,7 +1,7 @@
 param location string = resourceGroup().location
 param env string = 'dev'
-param dashedNameSuffix string = 'capplab-${env}-01'
-param blockNameSuffix string = 'capplabgbo${env}01'
+param dashedNameSuffix string = 'capplab-${env}-02'
+param blockNameSuffix string = 'capplabgbo${env}02'
 param remoteIp string
 param pushUserId string
 
@@ -15,6 +15,35 @@ var pepSubnetAddressPrefix = '192.168.96.0/27'
 var pepSubnetName = 'pep-subnet'
 
 var nonRegionalLocation = 'global'
+
+
+// Not the required RBAC roles to deploy the resources
+// var bdgName = 'bdg-${dashedNameSuffix}-40CHF'
+// module bdg 'br/public:avm/res/consumption/budget:0.3.5' = {
+//   scope: subscription()
+//   name: format(deployModulePattern, 'budget')
+//   params: {
+//     resourceGroupFilter: [
+//       resourceGroup().name
+//     ]
+//     name: bdgName
+//     amount: 40
+//     contactEmails: [
+//       'gb@garaio.com'
+//     ]
+//     resetPeriod: 'Monthly'
+//     thresholds: [
+//       {
+//         level: '50'
+//         percentage: 50
+//       }
+//       {
+//         level: '90'
+//         percentage: 90
+//       }
+//     ]
+//   }
+// }
 
 
 // Deploy log analytics workspace
@@ -63,6 +92,17 @@ module kv 'br/public:avm/res/key-vault/vault:0.10.0' = {
     location: location
     sku: 'standard'
     enableRbacAuthorization: true
+    publicNetworkAccess: 'Disabled'
+    networkAcls: {
+      bypass: 'AzureServices'
+      defaultAction: 'Deny'
+      ipRules: [
+        {
+          value: remoteIp
+          action: 'Allow'
+        }
+      ]
+    }
     privateEndpoints: [
       {
         name: format('pep-${kvName}')
@@ -99,7 +139,7 @@ module caeVNet 'br/public:avm/res/network/virtual-network:0.4.0' = {
       {
         name: caeSubnetName
         addressPrefix: caeSubnetAddressPrefix
-        networkSecurityGroupResourceId: nsg.outputs.resourceId
+        // networkSecurityGroupResourceId: nsg.outputs.resourceId
       }
     ]
   }
@@ -191,44 +231,44 @@ module privateDnsZoneKv 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
   }
 }
 
-// Network security group
-var nsgName = format('nsg-${dashedNameSuffix}')
-module nsg 'br/public:avm/res/network/network-security-group:0.5.0' = {
-  name: format(deployModulePattern, nsgName)
-  params: {
-    // Required parameters
-    name: nsgName
-    location: location
-    // Non-required parameters
-    securityRules: [
-      {
-        name: 'allow-container-registries'
-        properties: {
-          access: 'Allow'
-          direction: 'Outbound'
-          priority: 200
-          protocol: 'Tcp'
-          sourceAddressPrefix: 'VirtualNetwork'
-          sourcePortRange: '*'
-          destinationAddressPrefix: 'AzureContainerRegistry'
-          destinationPortRange: '443'
-        }
-      }
-    ]
-    diagnosticSettings: [
-      {
-        name: 'nsg-diag'
-        workspaceResourceId: workspace.outputs.resourceId
-        logCategoriesAndGroups: [
-          {
-            category: 'NetworkSecurityGroupEvent'
-            enabled: true
-          }
-        ]
-      }
-    ]
-  }
-}
+// // Network security group
+// var nsgName = format('nsg-${dashedNameSuffix}')
+// module nsg 'br/public:avm/res/network/network-security-group:0.5.0' = {
+//   name: format(deployModulePattern, nsgName)
+//   params: {
+//     // Required parameters
+//     name: nsgName
+//     location: location
+//     // Non-required parameters
+//     securityRules: [
+//       {
+//         name: 'allow-container-registries'
+//         properties: {
+//           access: 'Allow'
+//           direction: 'Outbound'
+//           priority: 200
+//           protocol: 'Tcp'
+//           sourceAddressPrefix: 'VirtualNetwork'
+//           sourcePortRange: '*'
+//           destinationAddressPrefix: 'AzureContainerRegistry'
+//           destinationPortRange: '443'
+//         }
+//       }
+//     ]
+//     diagnosticSettings: [
+//       {
+//         name: 'nsg-diag'
+//         workspaceResourceId: workspace.outputs.resourceId
+//         logCategoriesAndGroups: [
+//           {
+//             category: 'NetworkSecurityGroupEvent'
+//             enabled: true
+//           }
+//         ]
+//       }
+//     ]
+//   }
+// }
 
 var cappIdName = format('id-capp-${dashedNameSuffix}')
 module userAssignedIdentity 'br/public:avm/res/managed-identity/user-assigned-identity:0.4.0' = {
@@ -265,7 +305,7 @@ module containerRegistry 'br/public:avm/res/container-registry/registry:0.5.1' =
     ]
     exportPolicyStatus: 'enabled'
     publicNetworkAccess: 'Enabled'
-    networkRuleSetDefaultAction: 'Deny'
+    networkRuleSetDefaultAction: 'Allow'
     networkRuleBypassOptions: 'None'
     networkRuleSetIpRules: [
       {
@@ -337,6 +377,8 @@ module managedEnvironment 'br/public:avm/res/app/managed-environment:0.8.0' = {
     infrastructureResourceGroupName: resourceGroup().name
     enableTelemetry: true
     logsDestination: 'log-analytics'
+    internal: false
+    zoneRedundant: false
   }
 }
 
