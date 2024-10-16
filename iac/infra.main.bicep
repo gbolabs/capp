@@ -55,6 +55,7 @@ module workspace 'br/public:avm/res/operational-insights/workspace:0.7.0' = {
     location: location
   }
 }
+
 var appiName = format('appi-${blockNameSuffix}')
 module appi 'br/public:avm/res/insights/component:0.4.1' = {
   name: format(deployModulePattern, appiName)

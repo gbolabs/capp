@@ -53,7 +53,7 @@ module cappCarbone 'br/public:avm/res/app/container-app:0.11.0' = {
     ]
     containers: [
       {
-        image: '${acr.properties.loginServer}/${containerImageRepository}/carbone:${containerImageTag}'
+        image: '${acr.properties.loginServer}/${containerImageRepository}/carbone:latest'
         name: 'carbone'
         resources: {
           memory: memorySize
