@@ -1,9 +1,4 @@
-FROM --platform=amd64 ubuntu:20.04
-
-# Install the Azure CLI
-RUN apt-get update && apt-get install -y curl && \
-	curl -sL https://aka.ms/InstallAzureCLIDeb | bash && \
-	rm -rf /var/lib/apt/lists/*
+FROM --platform=amd64 mcr.microsoft.com/azure-cli:cbl-mariner2.0
 
 # Copy the script to the container
 COPY ./runner.sh /runner.sh
