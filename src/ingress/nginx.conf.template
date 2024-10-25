@@ -3,24 +3,13 @@ events {
 }
 
 http {
-    upstream cap_api {
-        server __CAPP_API_HOST__:__CAPP_API_PORT__;
-    }
-    upstream cap_web {
-        server __CAPP_WEB_HOST__:__CAPP_WEB_PORT__;
-    }
-    upstream cap_carbone {
-        server __CAPP_CARBONE_HOST__:__CAPP_CARBONE_PORT__;
-    }
     server {
         listen 0.0.0.0:80;
         
 
         location ~ ^/(api|swagger) {
-            proxy_pass __CAPP_API_SCHEME__://cap_api;
+            proxy_pass __CAPP_API_SCHEME__://__CAPP_API_HOST__:__CAPP_API_PORT__;
             proxy_http_version 1.1;
-            proxy_ssl_protocols TLSv1.2 TLSv1.3;
-            proxy_ssl_ciphers HIGH:!aNULL:!MD5:!kEDH:!kRSA:!SRP:!CAMELLIA:!DES:!IDEA:!SEED:!RC4:!3DES;
             proxy_ssl_server_name on; 
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -28,18 +17,17 @@ http {
         }
 
         location /carbone {
-            proxy_pass __CAPP_CARBONE_SCHEME__://cap_carbone;
+            proxy_pass __CAPP_CARBONE_SCHEME__://__CAPP_CARBONE_HOST__:__CAPP_CARBONE_PORT__;
             proxy_http_version 1.1;
+            proxy_ssl_server_name on; 
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
 
         location / {
-            proxy_pass __CAPP_WEB_SCHEME__://cap_web;
+            proxy_pass __CAPP_WEB_SCHEME__://__CAPP_WEB_HOST__:__CAPP_WEB_PORT__;
             proxy_http_version 1.1; 
-            proxy_ssl_protocols TLSv1.2 TLSv1.3;
-            proxy_ssl_ciphers HIGH:!aNULL:!MD5:!kEDH:!kRSA:!SRP:!CAMELLIA:!DES:!IDEA:!SEED:!RC4:!3DES;
             proxy_ssl_server_name on; 
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

@@ -1,3 +1,5 @@
+using Azure.Identity;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -6,6 +8,10 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+var vaultName = builder.Configuration["KEYVAULT_NAME"];
+var clientId = builder.Configuration["AZURE_CLIENT_ID"];
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -17,6 +23,11 @@ if (app.Environment.IsDevelopment())
         c.RoutePrefix = "api";
     });
 }
+else if (!string.IsNullOrEmpty(vaultName) && !string.IsNullOrEmpty(clientId))
+{
+    var uri = new Uri($"https://{vaultName}.vault.azure.net/");
+    builder.Configuration.AddAzureKeyVault(uri, new ManagedIdentityCredential(clientId));
+}
 
 app.UseHttpsRedirection();
 
@@ -24,6 +35,12 @@ var summaries = new[]
 {
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
 };
+
+app.MapGet("/secret/{key}", async (string key) =>
+{
+    var secret = app.Configuration[key];
+    return string.IsNullOrEmpty(secret) ? Results.NotFound() : Results.Ok(secret);
+});
 
 app.MapGet("/api", () => "Hello World!");
 

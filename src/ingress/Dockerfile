@@ -6,7 +6,4 @@ COPY ./nginx.conf.template /
 
 # Copy the runner.sh script
 COPY ./runner.sh /
-RUN chmod +x /runner.sh
-
-# Set the custom entrypoint
-ENTRYPOINT ["/runner.sh"]
+RUN chmod +x /runner.sh & mv /runner.sh /docker-entrypoint.d/09-runner.sh

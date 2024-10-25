@@ -1,14 +1,11 @@
 param location string = resourceGroup().location
 param env string = 'dev'
-param dashedNameSuffix string = 'capplab-${env}-01'
-param blockNameSuffix string = 'capplabgbo${env}01'
+param dashedNameSuffix string = 'capplab-${env}-02'
+param blockNameSuffix string = 'capplabgbo${env}02'
 param remoteIp string
 param pushUserId string
-param budgetAmount int
-param budgetNotificationEmail string
 
-
-var deployModulePattern = 'infra.main-module-{0}'
+var deployModulePattern = '${deployment().name}-{0}'
 var caeVnetAddressPrefix = '192.168.0.0/20'
 var caeSubnetAddressPrefix = '192.168.0.0/23'
 var caeSubnetName = 'cae-subnet'
@@ -18,25 +15,6 @@ var pepSubnetAddressPrefix = '192.168.96.0/27'
 var pepSubnetName = 'pep-subnet'
 
 var nonRegionalLocation = 'global'
-
-// budget
-var budgetName = format('budget-${dashedNameSuffix}')
-module budget 'br/public:avm/res/consumption/budget:0.3.5' = {
-  name: format(deployModulePattern, budgetName)
-  scope: subscription(subscription().subscriptionId)
-  params: {
-    amount: budgetAmount
-    category: 'Cost'
-    name: budgetName
-    resourceGroupFilter: [
-      resourceGroup().name
-    ]
-    thresholdType: 'Forecasted'
-    contactEmails: [
-      budgetNotificationEmail
-    ]
-  }
-}
 
 // Deploy log analytics workspace
 var logWaName = format('logwa-${dashedNameSuffix}')
@@ -49,6 +27,7 @@ module workspace 'br/public:avm/res/operational-insights/workspace:0.7.0' = {
     location: location
   }
 }
+
 var appiName = format('appi-${blockNameSuffix}')
 module appi 'br/public:avm/res/insights/component:0.4.1' = {
   name: format(deployModulePattern, appiName)
@@ -73,6 +52,79 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.13.2' = {
     location: location
     accessTier: 'Hot'
     skuName: 'Standard_LRS'
+    publicNetworkAccess: 'Enabled'
+    allowSharedKeyAccess: false
+    allowBlobPublicAccess: false
+    roleAssignments: [
+      {
+        principalType: 'User'
+        principalId: pushUserId
+        roleDefinitionIdOrName: 'Storage Blob Data Contributor'
+      }
+      {
+        principalType: 'ServicePrincipal'
+        principalId: userAssignedIdentity.outputs.principalId
+        roleDefinitionIdOrName: 'Storage Blob Data Contributor'
+      }
+    ]
+    networkAcls: {
+      bypass: 'AzureServices'
+      defaultAction: 'Deny'
+      ipRules: [
+        {
+          value: remoteIp
+          action: 'Allow'
+        }
+      ]
+    }
+    privateEndpoints:[
+      {
+        service: 'blob'
+        subnetResourceId: pepVNet.outputs.subnetResourceIds[0]
+      }
+    ]
+  }
+}
+
+var kvName = format('kv-${dashedNameSuffix}')
+module kv 'br/public:avm/res/key-vault/vault:0.10.0' = {
+  name: format(deployModulePattern, kvName)
+  params: {
+    name: kvName
+    location: location
+    sku: 'standard'
+    enableRbacAuthorization: true
+    publicNetworkAccess: 'Enabled'
+    networkAcls: {
+      bypass: 'AzureServices'
+      defaultAction: 'Deny'
+      ipRules: [
+        {
+          value: remoteIp
+          action: 'Allow'
+        }
+      ]
+    }
+    privateEndpoints: [
+      {
+        name: format('pep-${kvName}')
+        subnetResourceId: pepVNet.outputs.subnetResourceIds[0]
+      }
+    ]
+    roleAssignments: [
+      {
+        principalType: 'User'
+        principalId: pushUserId
+        roleDefinitionIdOrName: '/providers/Microsoft.Authorization/roleDefinitions/b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
+        // roleDefinitionIdOrName: 'Key Vault Secrets Officer'
+      }
+      {
+        principalType: 'ServicePrincipal'
+        principalId: userAssignedIdentity.outputs.principalId
+        roleDefinitionIdOrName: '/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6'
+        // roleDefinitionIdOrName: 'Key Vault Secrets User'
+      }
+    ]
   }
 }
 
@@ -91,7 +143,7 @@ module caeVNet 'br/public:avm/res/network/virtual-network:0.4.0' = {
       {
         name: caeSubnetName
         addressPrefix: caeSubnetAddressPrefix
-        networkSecurityGroupResourceId: nsg.outputs.resourceId
+        // networkSecurityGroupResourceId: nsg.outputs.resourceId
       }
     ]
   }
@@ -128,6 +180,8 @@ module pepVNet 'br/public:avm/res/network/virtual-network:0.4.0' = {
 // Private DNS zone
 var privateDnsZoneAcrName = 'privatelink${environment().suffixes.acrLoginServer}'
 var sqlServerPrivateDnsZone = 'privatelink${environment().suffixes.sqlServerHostname}'
+var kvPrivateDnsZone = 'privatelink${environment().suffixes.keyvaultDns}'
+var storageAccountPrivateDnsZone = 'privatelink${environment().suffixes.storage}'
 module privateDnsZoneAcr 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
   name: format(deployModulePattern, 'dns-${privateDnsZoneAcrName}')
   params: {
@@ -166,42 +220,33 @@ module privateDnsZoneSql 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
     ]
   }
 }
-
-// Network security group
-var nsgName = format('nsg-${dashedNameSuffix}')
-module nsg 'br/public:avm/res/network/network-security-group:0.5.0' = {
-  name: format(deployModulePattern, nsgName)
+module privateDnsZoneKv 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
+  name: format(deployModulePattern, 'dns-${kvName}')
   params: {
-    // Required parameters
-    name: nsgName
-    location: location
-    // Non-required parameters
-    securityRules: [
+    name: kvPrivateDnsZone
+    location: nonRegionalLocation
+    virtualNetworkLinks: [
       {
-        name: 'allow-container-registries'
-        properties: {
-          access: 'Allow'
-          direction: 'Outbound'
-          priority: 200
-          protocol: 'Tcp'
-          sourceAddressPrefix: 'VirtualNetwork'
-          sourcePortRange: '*'
-          destinationAddressPrefix: 'AzureContainerRegistry'
-          destinationPortRange: '443'
-        }
+        virtualNetworkResourceId: pepVNet.outputs.resourceId
+        location: nonRegionalLocation
+        name: 'pep-vnet-link'
       }
+      { virtualNetworkResourceId: caeVNet.outputs.resourceId, location: nonRegionalLocation, name: 'cae-vnet-link' }
     ]
-    diagnosticSettings:[
+  }
+}
+module privateDnsZoneStorage 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
+  name: format(deployModulePattern, 'dns-${storageAccountName}')
+  params: {
+    name: storageAccountPrivateDnsZone
+    location: nonRegionalLocation
+    virtualNetworkLinks: [
       {
-        name: 'nsg-diag'
-        workspaceResourceId: workspace.outputs.resourceId
-        logCategoriesAndGroups:[
-          {
-            category: 'NetworkSecurityGroupEvent'
-            enabled: true
-          }
-        ]
+        virtualNetworkResourceId: pepVNet.outputs.resourceId
+        location: nonRegionalLocation
+        name: 'pep-vnet-link'
       }
+      { virtualNetworkResourceId: caeVNet.outputs.resourceId, location: nonRegionalLocation, name: 'cae-vnet-link' }
     ]
   }
 }
@@ -222,8 +267,8 @@ module containerRegistry 'br/public:avm/res/container-registry/registry:0.5.1' =
     name: containerRegistryName
     location: location
     acrSku: 'Premium'
-    acrAdminUserEnabled:false
-    anonymousPullEnabled:false
+    acrAdminUserEnabled: false
+    anonymousPullEnabled: false
     azureADAuthenticationAsArmPolicyStatus: 'enabled'
     privateEndpoints: [
       {
@@ -239,11 +284,11 @@ module containerRegistry 'br/public:avm/res/container-registry/registry:0.5.1' =
         subnetResourceId: pepVNet.outputs.subnetResourceIds[0]
       }
     ]
-    exportPolicyStatus:	'enabled'
+    exportPolicyStatus: 'enabled'
     publicNetworkAccess: 'Enabled'
-    networkRuleSetDefaultAction: 'Deny'
+    networkRuleSetDefaultAction: 'Allow'
     networkRuleBypassOptions: 'None'
-    networkRuleSetIpRules:[
+    networkRuleSetIpRules: [
       {
         action: 'Allow'
         value: remoteIp
@@ -313,6 +358,8 @@ module managedEnvironment 'br/public:avm/res/app/managed-environment:0.8.0' = {
     infrastructureResourceGroupName: resourceGroup().name
     enableTelemetry: true
     logsDestination: 'log-analytics'
+    internal: false
+    zoneRedundant: false
   }
 }
 
