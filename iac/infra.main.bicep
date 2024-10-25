@@ -5,7 +5,7 @@ param blockNameSuffix string = 'capplabgbo${env}02'
 param remoteIp string
 param pushUserId string
 
-var deployModulePattern = 'infra.main-module-{0}'
+var deployModulePattern = '${deployment().name}-{0}'
 var caeVnetAddressPrefix = '192.168.0.0/20'
 var caeSubnetAddressPrefix = '192.168.0.0/23'
 var caeSubnetName = 'cae-subnet'
@@ -86,7 +86,7 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.13.2' = {
   }
 }
 
-var kvName = format('kv-${blockNameSuffix}')
+var kvName = format('kv-${dashedNameSuffix}')
 module kv 'br/public:avm/res/key-vault/vault:0.10.0' = {
   name: format(deployModulePattern, kvName)
   params: {
