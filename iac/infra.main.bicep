@@ -16,34 +16,6 @@ var pepSubnetName = 'pep-subnet'
 
 var nonRegionalLocation = 'global'
 
-// Not the required RBAC roles to deploy the resources
-// var bdgName = 'bdg-${dashedNameSuffix}-40CHF'
-// module bdg 'br/public:avm/res/consumption/budget:0.3.5' = {
-//   scope: subscription()
-//   name: format(deployModulePattern, 'budget')
-//   params: {
-//     resourceGroupFilter: [
-//       resourceGroup().name
-//     ]
-//     name: bdgName
-//     amount: 40
-//     contactEmails: [
-//       'gb@garaio.com'
-//     ]
-//     resetPeriod: 'Monthly'
-//     thresholds: [
-//       {
-//         level: '50'
-//         percentage: 50
-//       }
-//       {
-//         level: '90'
-//         percentage: 90
-//       }
-//     ]
-//   }
-// }
-
 // Deploy log analytics workspace
 var logWaName = format('logwa-${dashedNameSuffix}')
 module workspace 'br/public:avm/res/operational-insights/workspace:0.7.0' = {
@@ -80,6 +52,37 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.13.2' = {
     location: location
     accessTier: 'Hot'
     skuName: 'Standard_LRS'
+    publicNetworkAccess: 'Enabled'
+    allowSharedKeyAccess: false
+    allowBlobPublicAccess: false
+    roleAssignments: [
+      {
+        principalType: 'User'
+        principalId: pushUserId
+        roleDefinitionIdOrName: 'Storage Blob Data Contributor'
+      }
+      {
+        principalType: 'ServicePrincipal'
+        principalId: userAssignedIdentity.outputs.principalId
+        roleDefinitionIdOrName: 'Storage Blob Data Contributor'
+      }
+    ]
+    networkAcls: {
+      bypass: 'AzureServices'
+      defaultAction: 'Deny'
+      ipRules: [
+        {
+          value: remoteIp
+          action: 'Allow'
+        }
+      ]
+    }
+    privateEndpoints:[
+      {
+        service: 'blob'
+        subnetResourceId: pepVNet.outputs.subnetResourceIds[0]
+      }
+    ]
   }
 }
 
@@ -178,6 +181,7 @@ module pepVNet 'br/public:avm/res/network/virtual-network:0.4.0' = {
 var privateDnsZoneAcrName = 'privatelink${environment().suffixes.acrLoginServer}'
 var sqlServerPrivateDnsZone = 'privatelink${environment().suffixes.sqlServerHostname}'
 var kvPrivateDnsZone = 'privatelink${environment().suffixes.keyvaultDns}'
+var storageAccountPrivateDnsZone = 'privatelink${environment().suffixes.storage}'
 module privateDnsZoneAcr 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
   name: format(deployModulePattern, 'dns-${privateDnsZoneAcrName}')
   params: {
@@ -231,45 +235,21 @@ module privateDnsZoneKv 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
     ]
   }
 }
-
-// // Network security group
-// var nsgName = format('nsg-${dashedNameSuffix}')
-// module nsg 'br/public:avm/res/network/network-security-group:0.5.0' = {
-//   name: format(deployModulePattern, nsgName)
-//   params: {
-//     // Required parameters
-//     name: nsgName
-//     location: location
-//     // Non-required parameters
-//     securityRules: [
-//       {
-//         name: 'allow-container-registries'
-//         properties: {
-//           access: 'Allow'
-//           direction: 'Outbound'
-//           priority: 200
-//           protocol: 'Tcp'
-//           sourceAddressPrefix: 'VirtualNetwork'
-//           sourcePortRange: '*'
-//           destinationAddressPrefix: 'AzureContainerRegistry'
-//           destinationPortRange: '443'
-//         }
-//       }
-//     ]
-//     diagnosticSettings: [
-//       {
-//         name: 'nsg-diag'
-//         workspaceResourceId: workspace.outputs.resourceId
-//         logCategoriesAndGroups: [
-//           {
-//             category: 'NetworkSecurityGroupEvent'
-//             enabled: true
-//           }
-//         ]
-//       }
-//     ]
-//   }
-// }
+module privateDnsZoneStorage 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
+  name: format(deployModulePattern, 'dns-${storageAccountName}')
+  params: {
+    name: storageAccountPrivateDnsZone
+    location: nonRegionalLocation
+    virtualNetworkLinks: [
+      {
+        virtualNetworkResourceId: pepVNet.outputs.resourceId
+        location: nonRegionalLocation
+        name: 'pep-vnet-link'
+      }
+      { virtualNetworkResourceId: caeVNet.outputs.resourceId, location: nonRegionalLocation, name: 'cae-vnet-link' }
+    ]
+  }
+}
 
 var cappIdName = format('id-capp-${dashedNameSuffix}')
 module userAssignedIdentity 'br/public:avm/res/managed-identity/user-assigned-identity:0.4.0' = {
