@@ -1,0 +1,12 @@
+using 'app.bicep'
+
+param location = 'swedencentral'
+param env = 'dev'
+param dashedNameSuffix = 'capplab-${env}-02'
+param caeEnvName = 'cae-capplab-dev-02'
+param acrName = 'acrcapplabgbodev02'
+param uaidName = 'id-capp-capplab-dev-02'
+param containerImageRepository = 'capplab'
+param containerImageTag = '1.26'
+param secretName = 'test001'
+param vaultName = 'kv-capplabgbodev02'

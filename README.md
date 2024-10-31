@@ -37,6 +37,13 @@ Then, in sequence,
 ### Using BICEP Template
 The BICEP templates are located within `iac/`-directory where the `infra.main.bicep` and `infra.main.bicepparam` files create the initial infrastructure.
 
+#### ResourceGroup
+
+```bash
+az login -t {tenant}
+az deployment sub create --template-file 
+```
+
 #### Infrastructure
 
 ```bash

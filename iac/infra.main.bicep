@@ -181,7 +181,7 @@ module pepVNet 'br/public:avm/res/network/virtual-network:0.4.0' = {
 var privateDnsZoneAcrName = 'privatelink${environment().suffixes.acrLoginServer}'
 var sqlServerPrivateDnsZone = 'privatelink${environment().suffixes.sqlServerHostname}'
 var kvPrivateDnsZone = 'privatelink${environment().suffixes.keyvaultDns}'
-var storageAccountPrivateDnsZone = 'privatelink${environment().suffixes.storage}'
+var storageAccountPrivateDnsZone = 'privatelink.blob.${environment().suffixes.storage}'
 module privateDnsZoneAcr 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
   name: format(deployModulePattern, 'dns-${privateDnsZoneAcrName}')
   params: {
