@@ -485,4 +485,4 @@ $RECYCLE.BIN/
 *.swp
 
 # Local file of bicepparam files
-**/*.bicepparam.local
+**/*local.bicepparam
