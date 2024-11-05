@@ -82,6 +82,16 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.13.2' = {
     skuName: 'Standard_LRS'
   }
 }
+var contentShareName = 'content'
+resource fsShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
+  name: format('{0}/{1}', storageAccountName, contentShareName)
+  properties: {
+    shareQuota: 1024
+     accessTier: 'Hot'
+      enabledProtocols: 'SMB'
+  }
+}
+output fsShareName string = fsShare.properties.
 
 var kvName = format('kv-${blockNameSuffix}')
 module kv 'br/public:avm/res/key-vault/vault:0.10.0' = {

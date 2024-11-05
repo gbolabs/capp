@@ -173,6 +173,13 @@ module cappIngress 'br/public:avm/res/app/container-app:0.11.0' = {
     ingressTransport: 'http'
     scaleMinReplicas: 1
     scaleMaxReplicas: 2
+    volumes: [
+      {
+        name: 'content'
+        storageName: 'content'
+        storageType: 'AzureFile'
+      }
+    ]
     registries: [
       {
         identity: uaid.id
@@ -197,6 +204,12 @@ module cappIngress 'br/public:avm/res/app/container-app:0.11.0' = {
           { name: 'CAPP_CARBONE_HOST', value: cappCarbone.outputs.fqdn }
           { name: 'CAPP_CARBONE_PORT', value: '443' }
           { name: 'CAPP_CARBONE_SCHEME', value: 'https' }
+        ]
+        volumeMounts: [
+          {
+            mountPath: '/app/content'
+            volumeName: 'content'
+          }
         ]
       }
     ]
