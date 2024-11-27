@@ -1,7 +1,8 @@
 param location string = resourceGroup().location
 param env string = 'dev'
-param dashedNameSuffix string = 'capplab-${env}-02'
-param blockNameSuffix string = 'capplabgbo${env}02'
+param resIndex string = '03'
+param dashedNameSuffix string = 'capplab-${env}-${resIndex}'
+param blockNameSuffix string = 'capplabgbo${env}${resIndex}'
 param remoteIp string
 param pushUserId string
 
