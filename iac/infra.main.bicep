@@ -11,6 +11,9 @@ var caeVnetAddressPrefix = '192.168.0.0/20'
 var caeSubnetAddressPrefix = '192.168.0.0/23'
 var caeSubnetName = 'cae-subnet'
 
+var vmSubnetAddressPrefix = '192.168.2.0/24'
+var vmSubnetName = 'vm-subnet'
+
 var pepVnetAddressPrefix = '192.168.96.0/20'
 var pepSubnetAddressPrefix = '192.168.96.0/27'
 var pepSubnetName = 'pep-subnet'
@@ -159,6 +162,10 @@ module caeVNet 'br/public:avm/res/network/virtual-network:0.4.0' = {
         name: caeSubnetName
         addressPrefix: caeSubnetAddressPrefix
         // networkSecurityGroupResourceId: nsg.outputs.resourceId
+      }
+      {
+        name: vmSubnetName
+        addressPrefix: vmSubnetAddressPrefix
       }
     ]
   }
@@ -344,7 +351,7 @@ module sqlSrvRes 'br/public:avm/res/sql/server:0.11.1' = {
       azureADOnlyAuthentication: true
       principalType: 'Application'
       login: sqlAdminMidRes.outputs.name
-      sid: sqlAdminMidRes.outputs.clientId
+      sid: sqlAdminMidRes.outputs.principalId
     }
     firewallRules: [
       {
