@@ -1,16 +1,44 @@
 using System.Globalization;
+using System.Net;
 using api;
 using Azure.Identity;
 using Microsoft.AspNetCore.Localization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
+var noParallelWithQueue = "no-parallel-with-queue"; // Name of the rate limiter
+var FifteenRequestsPerMinute = "fifteen-requests-per-minute"; // Name of the rate limiter
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddRateLimiter(config =>
+{
+    config.RejectionStatusCode = (int)HttpStatusCode.TooManyRequests;
+    config.AddFixedWindowLimiter(FifteenRequestsPerMinute, config =>
+    {
+        config.Window = TimeSpan.FromMinutes(1);
+        config.PermitLimit = 15;
+        config.QueueLimit = 0;
+    });
+    config.AddConcurrencyLimiter(noParallelWithQueue, config =>
+    {
+        config.PermitLimit = 1; // Allow 1 request to be processed
+        config.QueueLimit = 2; // Allow 2 requests to be queued
+    });
+    config.OnRejected = OnRejected;
 
+    
+});
+
+async ValueTask OnRejected(OnRejectedContext arg1, CancellationToken arg2)
+{
+    var logger = arg1.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+    logger.LogWarning("Request rejected: {0}", arg1.HttpContext.Request.Path);
+    await Task.CompletedTask;
+}
 // Add localizations
 builder.Services.AddLocalization(options => options.ResourcesPath = "Texts");
 builder.Services.Configure<RequestLocalizationOptions>(options =>
@@ -49,9 +77,9 @@ else if (!string.IsNullOrEmpty(vaultName) && !string.IsNullOrEmpty(clientId))
     builder.Configuration.AddAzureKeyVault(uri, new ManagedIdentityCredential(clientId));
 }
 
-app.UseHttpsRedirection();
-
 app.UseRequestLocalization(app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value);
+
+app.UseRateLimiter();
 
 var summaries = new[]
 {
@@ -66,7 +94,13 @@ app.MapGet("/secret/{key}", async (string key) =>
 
 app.MapGet("/api", () => "Hello World!");
 
-app.MapGet("/api/health", () => new { Status = "Healthy", Hostname = Environment.MachineName });
+app.MapGet("/api/health", async () =>
+    {
+        await Task.Delay(TimeSpan.FromSeconds(5));
+        return new { Status = "Healthy", Hostname = Environment.MachineName };
+    })
+    .RequireRateLimiting(noParallelWithQueue)
+    .RequireRateLimiting(FifteenRequestsPerMinute);
 
 app.MapGet("/api/version", () => new { Version = "1.0.0" });
 

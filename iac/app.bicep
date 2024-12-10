@@ -10,6 +10,10 @@ param containerImageTag string
 param secretName string
 param vaultName string
 
+param customDnsZoneName string
+param customDnsZoneResourceGroup string
+param customDnsZoneSubscriptionId string
+
 var deployModulePattern = 'capp-module-{0}'
 var memorySize = '1.0Gi'
 var apiCappName = format('cap-api-${dashedNameSuffix}')
@@ -26,6 +30,20 @@ resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {
 }
 resource uaid 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
   name: uaidName
+}
+module ingressCnameRecord 'br/public:avm/res/network/dns-zone:0.5.0' = {
+  name: 'ingress-cname-record'
+  scope: resourceGroup(customDnsZoneSubscriptionId,customDnsZoneResourceGroup)
+  params: {
+    name: customDnsZoneName
+    cname: [
+      {
+        name: 'gbocaplab'
+        ttl: 300
+        cnameRecord: { cname: cappIngress.outputs.fqdn }
+      }
+    ]
+  }
 }
 
 module cappCarbone 'br/public:avm/res/app/container-app:0.11.0' = {
@@ -105,16 +123,6 @@ module cappApi 'br/public:avm/res/app/container-app:0.11.0' = {
         ]
       }
     ]
-    // initContainersTemplate: [
-    //   {
-    //     image: 'docker.io/alpine:latest'
-    //     name: 'init'
-    //     resources: {
-    //       cpu: json('0.5')
-    //       memory: '1.0Gi'
-    //     }
-    //   }
-    // ]
   }
 }
 
@@ -166,6 +174,9 @@ module cappIngress 'br/public:avm/res/app/container-app:0.11.0' = {
         uaid.id
       ]
     }
+    customDomains: [
+      {}
+    ]
     ingressExternal: true
     disableIngress: false
     ingressAllowInsecure: false
