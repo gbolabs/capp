@@ -351,7 +351,8 @@ module sqlSrvRes 'br/public:avm/res/sql/server:0.11.1' = {
       azureADOnlyAuthentication: true
       principalType: 'Application'
       login: sqlAdminMidRes.outputs.name
-      sid: sqlAdminMidRes.outputs.principalId
+      sid: sqlAdminMidRes.outputs.clientId
+      tenantId: tenant().tenantId
     }
     firewallRules: [
       {
