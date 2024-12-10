@@ -85,6 +85,14 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.13.2' = {
       {
         service: 'blob'
         subnetResourceId: pepVNet.outputs.subnetResourceIds[0]
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              name: storageAccountPrivateDnsZone
+              privateDnsZoneResourceId: privateDnsZoneStorage.outputs.resourceId
+            }
+          ]
+        }
       }
     ]
   }
@@ -127,6 +135,14 @@ module kv 'br/public:avm/res/key-vault/vault:0.10.0' = {
       {
         name: format('pep-${kvName}')
         subnetResourceId: pepVNet.outputs.subnetResourceIds[0]
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              name: kvPrivateDnsZone
+              privateDnsZoneResourceId: privateDnsZoneKv.outputs.resourceId
+            }
+          ]
+        }
       }
     ]
     roleAssignments: [
@@ -203,7 +219,7 @@ module pepVNet 'br/public:avm/res/network/virtual-network:0.4.0' = {
 var privateDnsZoneAcrName = 'privatelink${environment().suffixes.acrLoginServer}'
 var sqlServerPrivateDnsZone = 'privatelink${environment().suffixes.sqlServerHostname}'
 var kvPrivateDnsZone = 'privatelink${environment().suffixes.keyvaultDns}'
-var storageAccountPrivateDnsZone = 'privatelink${environment().suffixes.storage}'
+var storageAccountPrivateDnsZone = 'privatelink.${environment().suffixes.storage}'
 module privateDnsZoneAcr 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
   name: format(deployModulePattern, 'dns-${privateDnsZoneAcrName}')
   params: {
@@ -346,7 +362,7 @@ module sqlSrvRes 'br/public:avm/res/sql/server:0.11.1' = {
   params: {
     name: sqlSrvName
     location: location
-    publicNetworkAccess: 'Disabled'
+    publicNetworkAccess: 'Enabled'
     administrators: {
       azureADOnlyAuthentication: true
       principalType: 'Application'
@@ -361,6 +377,9 @@ module sqlSrvRes 'br/public:avm/res/sql/server:0.11.1' = {
         endIpAddress: remoteIp
       }
     ]
+    auditSettings: {
+      state: 'Disabled'
+    }
     databases: [
       {
         name: dbName
