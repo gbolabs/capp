@@ -209,6 +209,8 @@ module pepVNet 'br/public:avm/res/network/virtual-network:0.4.0' = {
         allowVirtualNetworkAccess: true
         remotePeeringAllowVirtualNetworkAccess: true
         remotePeeringEnabled: true
+        remotePeeringAllowForwardedTraffic: false
+        allowForwardedTraffic: false
         remotePeeringName: 'cae-pep-peer'
       }
     ]
