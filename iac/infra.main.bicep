@@ -78,7 +78,7 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.13.2' = {
         }
       ]
     }
-    privateEndpoints:[
+    privateEndpoints: [
       {
         service: 'blob'
         subnetResourceId: pepVNet.outputs.subnetResourceIds[0]
@@ -96,8 +96,8 @@ resource fileShareRes 'Microsoft.Storage/storageAccounts/fileServices/shares@202
   parent: fileShareServices
   name: fileShareName
   properties: {
-     enabledProtocols: 'SMB'
-      accessTier: 'Hot'
+    enabledProtocols: 'SMB'
+    accessTier: 'Hot'
   }
 }
 
@@ -340,12 +340,19 @@ module sqlSrvRes 'br/public:avm/res/sql/server:0.11.1' = {
     name: sqlSrvName
     location: location
     publicNetworkAccess: 'Disabled'
-     administrators:  {
+    administrators: {
       azureADOnlyAuthentication: true
-      principalType: 'User'
+      principalType: 'Application'
       login: sqlAdminMidRes.outputs.name
       sid: sqlAdminMidRes.outputs.clientId
-     }
+    }
+    firewallRules: [
+      {
+        name: 'AllowIp'
+        startIpAddress: remoteIp
+        endIpAddress: remoteIp
+      }
+    ]
     databases: [
       {
         name: dbName
