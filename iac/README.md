@@ -1,7 +1,15 @@
 # Deployment
 
+# 1. Deploy the RG
+
 ```shell
-az deployment group create -g $rg --name capp-lab-infra --template-file infra.main.bicep --parameters infra.main.bicepparam
+az deployment sub create --name 
+```
+
+# 2. Deploy the infra
+
+```shell
+az deployment group create -g rg-capp-lab-dev-0 --template-file ./infra.main.bicep --parameters ./infra.main-local.bicepparam
 ```
 
 # Parameters

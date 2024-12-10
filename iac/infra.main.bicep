@@ -87,6 +87,20 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.13.2' = {
   }
 }
 
+var fileShareName = format('share-${caeName}')
+resource fileShareServices 'Microsoft.Storage/storageAccounts/fileServices@2023-05-01' = {
+  name: '${storageAccountName}/default'
+  dependsOn: [storageAccount]
+}
+resource fileShareRes 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
+  parent: fileShareServices
+  name: fileShareName
+  properties: {
+     enabledProtocols: 'SMB'
+      accessTier: 'Hot'
+  }
+}
+
 var kvName = format('kv-${dashedNameSuffix}')
 module kv 'br/public:avm/res/key-vault/vault:0.10.0' = {
   name: format(deployModulePattern, kvName)
@@ -310,40 +324,49 @@ module containerRegistry 'br/public:avm/res/container-registry/registry:0.5.1' =
   }
 }
 
-// var sqlSrvName = format('sqlsrv-${dashedNameSuffix}')
-// var dbName = format('db-${dashedNameSuffix}')
-// module sqlSrvRes 'br/public:avm/res/sql/server:0.8.0' = {
-//   name: format(deployModulePattern, sqlSrvName)
-//   params: {
-//     name: sqlSrvName
-//     location: location
-//     publicNetworkAccess: 'Disabled'
-//     administrators:{
-//       azureADOnlyAdminLogin: true
-//       azureADOnlyAdminLoginPrincipalId: userAssignedIdentity.outputs.principalId
-//     }
-//     databases: [
-//       {
-//         name: dbName
-//         collation: 'SQL_Latin1_General_CP1_CI_AS'
-//       }
-//     ]
-//     privateEndpoints: [
-//       {
-//         name: format('pep-${sqlSrvName}')
-//         privateDnsZoneGroup: {
-//           privateDnsZoneGroupConfigs: [
-//             {
-//               name: sqlServerPrivateDnsZone
-//               privateDnsZoneResourceId: privateDnsZoneSql.outputs.resourceId
-//             }
-//           ]
-//         }
-//         subnetResourceId: pepVNet.outputs.resourceId
-//       }
-//     ]
-//   }
-// }
+var sqlSrvName = format('sqlsrv-${dashedNameSuffix}')
+var dbName = format('db-${dashedNameSuffix}')
+module sqlSrvRes 'br/public:avm/res/sql/server:0.11.1' = {
+  name: format(deployModulePattern, sqlSrvName)
+  params: {
+    name: sqlSrvName
+    location: location
+    publicNetworkAccess: 'Disabled'
+     administrators:  {
+      azureADOnlyAuthentication: true
+      principalType: 'User'
+      login: 'sqladmin'
+      sid: userAssignedIdentity.outputs.principalId
+     }
+    databases: [
+      {
+        name: dbName
+        collation: 'SQL_Latin1_General_CP1_CI_AS'
+        // VCore model (General Purpose)
+        sku: {
+          name: 'GP_Gen5_2'
+          tier: 'GeneralPurpose'
+          family: 'Gen5'
+          capacity: 2
+        }
+      }
+    ]
+    privateEndpoints: [
+      {
+        name: format('pep-${sqlSrvName}')
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              name: sqlServerPrivateDnsZone
+              privateDnsZoneResourceId: privateDnsZoneSql.outputs.resourceId
+            }
+          ]
+        }
+        subnetResourceId: pepVNet.outputs.resourceId
+      }
+    ]
+  }
+}
 
 var caeName = format('cae-${dashedNameSuffix}')
 module managedEnvironment 'br/public:avm/res/app/managed-environment:0.8.0' = {
@@ -361,6 +384,17 @@ module managedEnvironment 'br/public:avm/res/app/managed-environment:0.8.0' = {
     logsDestination: 'log-analytics'
     internal: false
     zoneRedundant: false
+    openTelemetryConfiguration: {
+      samplingPercentage: 100
+    }
+    storages: [
+      {
+        shareName: fileShareName
+        accessMode: 'ReadWrite'
+        kind: 'SMB'
+        storageAccountName: storageAccount.outputs.name
+      }
+    ]
   }
 }
 
