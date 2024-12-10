@@ -274,6 +274,14 @@ module userAssignedIdentity 'br/public:avm/res/managed-identity/user-assigned-id
     name: cappIdName
   }
 }
+var sqlAdminMid = format('id-sqladmin-${dashedNameSuffix}')
+module sqlAdminMidRes 'br/public:avm/res/managed-identity/user-assigned-identity:0.4.0' = {
+  name: format(deployModulePattern, sqlAdminMid)
+  params: {
+    // Required parameters
+    name: sqlAdminMid
+  }
+}
 
 var containerRegistryName = format('acr${blockNameSuffix}')
 module containerRegistry 'br/public:avm/res/container-registry/registry:0.5.1' = {
@@ -335,8 +343,8 @@ module sqlSrvRes 'br/public:avm/res/sql/server:0.11.1' = {
      administrators:  {
       azureADOnlyAuthentication: true
       principalType: 'User'
-      login: 'sqladmin'
-      sid: userAssignedIdentity.outputs.principalId
+      login: sqlAdminMidRes.outputs.name
+      sid: sqlAdminMidRes.outputs.clientId
      }
     databases: [
       {
@@ -362,7 +370,7 @@ module sqlSrvRes 'br/public:avm/res/sql/server:0.11.1' = {
             }
           ]
         }
-        subnetResourceId: pepVNet.outputs.resourceId
+        subnetResourceId: pepVNet.outputs.subnetResourceIds[0]
       }
     ]
   }
