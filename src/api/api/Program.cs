@@ -4,7 +4,6 @@ using api;
 using Azure.Identity;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using Infrastructure;
-using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -24,7 +23,10 @@ var FifteenRequestsPerMinute = "fifteen-requests-per-minute"; // Name of the rat
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(op =>
+{
+    
+});
 builder.Services.AddHostedService<BackgroundJob>();
 builder.Services.AddRateLimiter(config =>
 {
@@ -120,10 +122,10 @@ var summaries = new[]
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
 };
 
-app.MapGet("/secret/{key}", async (string key) =>
+app.MapGet("/secret/{key}", (string key) =>
 {
     var secret = app.Configuration[key];
-    return string.IsNullOrEmpty(secret) ? Results.NotFound() : Results.Ok(secret);
+    return Task.FromResult(string.IsNullOrEmpty(secret) ? Results.NotFound() : Results.Ok(secret));
 });
 
 app.MapGet("/api", () => "Hello World!");
