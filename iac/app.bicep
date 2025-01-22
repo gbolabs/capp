@@ -1,6 +1,6 @@
 param location string = resourceGroup().location
 param env string = 'dev'
-param dashedNameSuffix string = 'capplab-${env}-02'
+param dashedNameSuffix string = 'capplab-${env}-03'
 
 param caeEnvName string
 param acrName string
@@ -56,8 +56,8 @@ module cappCarbone 'br/public:avm/res/app/container-app:0.11.0' = {
     ingressExternal: false
     ingressTargetPort: 4000
     ingressTransport: 'http'
-    scaleMinReplicas: 1
-    scaleMaxReplicas: 2
+    scaleMinReplicas: 2
+    scaleMaxReplicas: 8
     managedIdentities: {
       userAssignedResourceIds: [
         uaid.id
@@ -69,6 +69,28 @@ module cappCarbone 'br/public:avm/res/app/container-app:0.11.0' = {
         server: acr.properties.loginServer
       }
     ]
+    volumes:[
+      {
+        name: 'carbone'
+        storageType: 'EmptyDir'
+      }
+    ]
+    // scaleRules: [
+    //   {
+    //     metricName: 'cpu'
+    //     metricThreshold: 80
+    //     scaleDirection: 'out'
+    //     scaleStep: 1
+    //     cooldown: 'PT1M'
+    //   }
+    //   {
+    //     metricName: 'cpu'
+    //     metricThreshold: 20
+    //     scaleDirection: 'in'
+    //     scaleStep: 1
+    //     cooldown: 'PT1M'
+    //   }
+    // ]
     containers: [
       {
         image: '${acr.properties.loginServer}/${containerImageRepository}/carbone:latest'
@@ -77,6 +99,18 @@ module cappCarbone 'br/public:avm/res/app/container-app:0.11.0' = {
           memory: memorySize
           cpu: json('0.5')
         }
+        volumeMounts: [
+          {
+            volumeName: 'carbone'
+            subPath: 'render'
+            mountPath: '/app/render'
+          }
+          {
+            volumeName: 'carbone'
+            subPath: 'template'
+            mountPath: '/app/template'
+          }
+        ]
       }
     ]
   }
@@ -175,7 +209,12 @@ module cappIngress 'br/public:avm/res/app/container-app:0.11.0' = {
       ]
     }
     customDomains: [
-      {}
+      {
+        name: 'gbocaplab'
+        zoneName: customDnsZoneName
+        zoneResourceGroup: customDnsZoneResourceGroup
+        zoneSubscriptionId: customDnsZoneSubscriptionId
+      }
     ]
     ingressExternal: true
     disableIngress: false

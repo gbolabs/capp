@@ -2,11 +2,21 @@ using System.Globalization;
 using System.Net;
 using api;
 using Azure.Identity;
+using Azure.Monitor.OpenTelemetry.AspNetCore;
+using Infrastructure;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.ClearProviders();
+
+builder.Services.AddDbContext<MyDbContext>(options =>
+    options.UseSqlServer("YourConnectionStringHere"));
+
 var noParallelWithQueue = "no-parallel-with-queue"; // Name of the rate limiter
 var FifteenRequestsPerMinute = "fifteen-requests-per-minute"; // Name of the rate limiter
 
@@ -14,6 +24,7 @@ var FifteenRequestsPerMinute = "fifteen-requests-per-minute"; // Name of the rat
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHostedService<BackgroundJob>();
 builder.Services.AddRateLimiter(config =>
 {
     config.RejectionStatusCode = (int)HttpStatusCode.TooManyRequests;
@@ -40,6 +51,16 @@ async ValueTask OnRejected(OnRejectedContext arg1, CancellationToken arg2)
     await Task.CompletedTask;
 }
 // Add localizations
+builder.Services.AddOpenTelemetry()
+    .WithTracing(builder =>
+    {
+        builder.AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation();
+    })
+    .UseAzureMonitor(options =>
+{
+    options.ConnectionString = builder.Configuration.GetSection("ApplicationInsights").GetValue<string>("ConnectionString");
+});
 builder.Services.AddLocalization(options => options.ResourcesPath = "Texts");
 builder.Services.Configure<RequestLocalizationOptions>(options =>
 {
@@ -62,6 +83,10 @@ var clientId = builder.Configuration["AZURE_CLIENT_ID"];
 
 
 // Configure the HTTP request pipeline.
+
+// Add the correlation id middleware
+app.UseMiddleware<ExceptionMiddleware>();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -94,11 +119,7 @@ app.MapGet("/secret/{key}", async (string key) =>
 
 app.MapGet("/api", () => "Hello World!");
 
-app.MapGet("/api/health", async () =>
-    {
-        await Task.Delay(TimeSpan.FromSeconds(5));
-        return new { Status = "Healthy", Hostname = Environment.MachineName };
-    })
+app.MapGet("/api/health", () => Task.FromResult(new { Status = "Healthy", Hostname = Environment.MachineName }))
     .RequireRateLimiting(noParallelWithQueue)
     .RequireRateLimiting(FifteenRequestsPerMinute);
 
@@ -113,6 +134,34 @@ app.MapGet("/api/text/fixed", () =>
         Direct = Texts.text02
     }
 );
+
+app.MapGet("/api/products/", async (MyDbContext dbContext) => await dbContext.Products.ToListAsync());
+app.MapPost("/api/products/", async (MyDbContext dbContext, Product product) =>
+{
+    dbContext.Products.Add(product);
+    await dbContext.SaveChangesAsync();
+    return Results.Created($"/api/products/{product.Id}", product);
+});
+app.MapPut("/api/products/", async (MyDbContext dbContext, Product product) =>
+{
+    dbContext.Products.Add(product);
+    await dbContext.SaveChangesAsync();
+    return Results.Created($"/api/products/{product.Id}", product);
+});
+app.MapDelete("/api/products/{id}", async (MyDbContext dbContext, int id) =>
+{
+    var product = await dbContext.Products.FindAsync(id);
+    if (product is null)
+    {
+        return Results.NotFound();
+    }
+
+    dbContext.Products.Remove(product);
+    await dbContext.SaveChangesAsync();
+    return Results.NoContent();
+});
+
+app.MapGet("/api/exception/", _ => throw new InvalidOperationException("This is an exception"));
 
 app.MapGet("/api/text/{text}", (string text) => Texts.ResourceManager.GetString(text, CultureInfo.CurrentCulture));
 

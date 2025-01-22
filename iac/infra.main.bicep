@@ -3,8 +3,12 @@ param env string = 'dev'
 param resIndex string = '03'
 param dashedNameSuffix string = 'capplab-${env}-${resIndex}'
 param blockNameSuffix string = 'capplabgbo${env}${resIndex}'
-param remoteIp string
+param firewallIpWhitelist array
 param pushUserId string
+param sqlServerLogin string
+@secure()
+param sqlServerSecret string
+param useEntraOnlySqlAuthentications bool = false
 
 var deployModulePattern = '${deployment().name}-{0}'
 var caeVnetAddressPrefix = '192.168.0.0/20'
@@ -75,8 +79,8 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.13.2' = {
       bypass: 'AzureServices'
       defaultAction: 'Deny'
       ipRules: [
-        {
-          value: remoteIp
+        for ip in firewallIpWhitelist: {
+          value: ip
           action: 'Allow'
         }
       ]
@@ -125,8 +129,8 @@ module kv 'br/public:avm/res/key-vault/vault:0.10.0' = {
       bypass: 'AzureServices'
       defaultAction: 'Deny'
       ipRules: [
-        {
-          value: remoteIp
+        for ip in firewallIpWhitelist: {
+          value: ip
           action: 'Allow'
         }
       ]
@@ -337,9 +341,9 @@ module containerRegistry 'br/public:avm/res/container-registry/registry:0.5.1' =
     networkRuleSetDefaultAction: 'Allow'
     networkRuleBypassOptions: 'None'
     networkRuleSetIpRules: [
-      {
+      for ip in firewallIpWhitelist: {
+        value: ip
         action: 'Allow'
-        value: remoteIp
       }
     ]
     roleAssignments: [
@@ -365,18 +369,20 @@ module sqlSrvRes 'br/public:avm/res/sql/server:0.11.1' = {
     name: sqlSrvName
     location: location
     publicNetworkAccess: 'Enabled'
+    administratorLogin: useEntraOnlySqlAuthentications ? '' : sqlServerLogin
+    administratorLoginPassword: useEntraOnlySqlAuthentications ? '' : sqlServerSecret
     administrators: {
-      azureADOnlyAuthentication: true
+      azureADOnlyAuthentication: useEntraOnlySqlAuthentications
       principalType: 'Application'
       login: sqlAdminMidRes.outputs.name
       sid: sqlAdminMidRes.outputs.clientId
       tenantId: tenant().tenantId
     }
     firewallRules: [
-      {
-        name: 'AllowIp'
-        startIpAddress: remoteIp
-        endIpAddress: remoteIp
+      for ip in firewallIpWhitelist: {
+        name: format('fw-${ip}')
+        startIpAddress: ip
+        endIpAddress: ip
       }
     ]
     auditSettings: {
@@ -385,7 +391,8 @@ module sqlSrvRes 'br/public:avm/res/sql/server:0.11.1' = {
     databases: [
       {
         name: dbName
-        collation: 'SQL_Latin1_General_CP1_CI_AS'
+        // standard european collation (case-sensitive, accent-sensitive)
+        collation: 'SQL_Latin1_General_CP1_CS_AS'
         // VCore model (General Purpose)
         sku: {
           name: 'GP_Gen5_2'
