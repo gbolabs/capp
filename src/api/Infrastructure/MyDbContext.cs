@@ -14,5 +14,3 @@ public class MyDbContext(DbContextOptions<MyDbContext> options) : DbContext(opti
         }
     }
 }
-
-public record Product(int Id, string Name);

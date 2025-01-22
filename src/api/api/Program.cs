@@ -15,7 +15,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 
 builder.Services.AddDbContext<MyDbContext>(options =>
-    options.UseSqlServer("YourConnectionStringHere"));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))); // Access connection string from appsettings.json
+
 
 var noParallelWithQueue = "no-parallel-with-queue"; // Name of the rate limiter
 var FifteenRequestsPerMinute = "fifteen-requests-per-minute"; // Name of the rate limiter
@@ -78,6 +79,13 @@ builder.Services.Configure<RequestLocalizationOptions>(options =>
 
 var app = builder.Build();
 
+// Apply any pending migrations automatically
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<MyDbContext>();
+    dbContext.Database.Migrate(); // Applies any pending migrations automatically
+}
+
 var vaultName = builder.Configuration["KEYVAULT_NAME"];
 var clientId = builder.Configuration["AZURE_CLIENT_ID"];
 
@@ -86,6 +94,7 @@ var clientId = builder.Configuration["AZURE_CLIENT_ID"];
 
 // Add the correlation id middleware
 app.UseMiddleware<ExceptionMiddleware>();
+app.UseMiddleware<TraceIdMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
@@ -159,6 +168,11 @@ app.MapDelete("/api/products/{id}", async (MyDbContext dbContext, int id) =>
     dbContext.Products.Remove(product);
     await dbContext.SaveChangesAsync();
     return Results.NoContent();
+});
+app.MapGet("/api/products/{id}", async (MyDbContext dbContext, int id) =>
+{
+    var product = await dbContext.Products.FindAsync(id);
+    return product is null ? Results.NotFound() : Results.Ok(product);
 });
 
 app.MapGet("/api/exception/", _ => throw new InvalidOperationException("This is an exception"));
