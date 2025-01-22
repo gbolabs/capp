@@ -31,16 +31,16 @@ builder.Services.AddHostedService<BackgroundJob>();
 builder.Services.AddRateLimiter(config =>
 {
     config.RejectionStatusCode = (int)HttpStatusCode.TooManyRequests;
-    config.AddFixedWindowLimiter(FifteenRequestsPerMinute, config =>
+    config.AddFixedWindowLimiter(FifteenRequestsPerMinute, options =>
     {
-        config.Window = TimeSpan.FromMinutes(1);
-        config.PermitLimit = 15;
-        config.QueueLimit = 0;
+        options.Window = TimeSpan.FromMinutes(1);
+        options.PermitLimit = 15;
+        options.QueueLimit = 0;
     });
-    config.AddConcurrencyLimiter(noParallelWithQueue, config =>
+    config.AddConcurrencyLimiter(noParallelWithQueue, options =>
     {
-        config.PermitLimit = 1; // Allow 1 request to be processed
-        config.QueueLimit = 2; // Allow 2 requests to be queued
+        options.PermitLimit = 1; // Allow 1 request to be processed
+        options.QueueLimit = 2; // Allow 2 requests to be queued
     });
     config.OnRejected = OnRejected;
 

@@ -5,18 +5,15 @@ WORKDIR /app
 # Copy the project file and restore dependencies
 COPY api/*.csproj ./api/
 COPY Infrastructure/*.csproj ./Infrastructure/
+COPY Directory.*.props .
 COPY api.sln .
 
-# Avoid dotnet restore to run indefinitely
-ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
-ENV DOTNET_EnableWriteXorExecute=0
-
-RUN dotnet restore api.sln
+RUN dotnet restore *.sln
 
 # Copy the rest of the source code and build the API
 COPY . .
 
-RUN dotnet publish -c Release -o out --no-build --no-restore ./api/api.csproj
+RUN dotnet publish -c Release -o out ./api/api.csproj
 
 # Stage 2: Run the .NET API
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime

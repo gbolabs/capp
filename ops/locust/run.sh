@@ -1,0 +1,1 @@
+docker run --rm -p 8089:8089 -v $(pwd)/locustfile.py:/mnt/locustfile.py locustio/locust -f /mnt/locustfile.py --headless -u 5 -r 1 --host https://api.happydesert-d202567f.swedencentral.azurecontainerapps.io

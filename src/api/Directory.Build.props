@@ -1,5 +1,6 @@
 <Project>
     <PropertyGroup>
+        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
         <TargetFramework> net8.0</TargetFramework>
