@@ -15,7 +15,6 @@ public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddlewa
         {
             logger.LogError(ex, ex.Message);
             context.Response.ContentType = "application/json";
-            context.Request.Headers.Append("X-Trace-Id", Activity.Current?.TraceId.ToString());
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
             var responseBody = new
             {

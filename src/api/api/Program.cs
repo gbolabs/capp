@@ -7,6 +7,7 @@ using Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -55,6 +56,12 @@ async ValueTask OnRejected(OnRejectedContext arg1, CancellationToken arg2)
 }
 // Add localizations
 builder.Services.AddOpenTelemetry()
+    .WithLogging()
+    .WithMetrics(builder =>
+    {
+        builder.AddAspNetCoreInstrumentation()
+            .AddAspNetCoreInstrumentation();
+    })
     .WithTracing(builder =>
     {
         builder.AddAspNetCoreInstrumentation()
