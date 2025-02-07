@@ -1,14 +1,22 @@
 param location string = resourceGroup().location
 param env string = 'dev'
-param dashedNameSuffix string = 'capplab-${env}-02'
-param blockNameSuffix string = 'capplabgbo${env}02'
-param remoteIp string
+param resIndex string = '03'
+param dashedNameSuffix string = 'capplab-${env}-${resIndex}'
+param blockNameSuffix string = 'capplabgbo${env}${resIndex}'
+param firewallIpWhitelist array
 param pushUserId string
+param sqlServerLogin string
+@secure()
+param sqlServerSecret string
+param useEntraOnlySqlAuthentications bool = false
 
 var deployModulePattern = '${deployment().name}-{0}'
 var caeVnetAddressPrefix = '192.168.0.0/20'
 var caeSubnetAddressPrefix = '192.168.0.0/23'
 var caeSubnetName = 'cae-subnet'
+
+var vmSubnetAddressPrefix = '192.168.2.0/24'
+var vmSubnetName = 'vm-subnet'
 
 var pepVnetAddressPrefix = '192.168.96.0/20'
 var pepSubnetAddressPrefix = '192.168.96.0/27'
@@ -71,18 +79,40 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.13.2' = {
       bypass: 'AzureServices'
       defaultAction: 'Deny'
       ipRules: [
-        {
-          value: remoteIp
+        for ip in firewallIpWhitelist: {
+          value: ip
           action: 'Allow'
         }
       ]
     }
-    privateEndpoints:[
+    privateEndpoints: [
       {
         service: 'blob'
         subnetResourceId: pepVNet.outputs.subnetResourceIds[0]
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              name: storageAccountPrivateDnsZone
+              privateDnsZoneResourceId: privateDnsZoneStorage.outputs.resourceId
+            }
+          ]
+        }
       }
     ]
+  }
+}
+
+var fileShareName = format('share-${caeName}')
+resource fileShareServices 'Microsoft.Storage/storageAccounts/fileServices@2023-05-01' = {
+  name: '${storageAccountName}/default'
+  dependsOn: [storageAccount]
+}
+resource fileShareRes 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
+  parent: fileShareServices
+  name: fileShareName
+  properties: {
+    enabledProtocols: 'SMB'
+    accessTier: 'Hot'
   }
 }
 
@@ -99,8 +129,8 @@ module kv 'br/public:avm/res/key-vault/vault:0.10.0' = {
       bypass: 'AzureServices'
       defaultAction: 'Deny'
       ipRules: [
-        {
-          value: remoteIp
+        for ip in firewallIpWhitelist: {
+          value: ip
           action: 'Allow'
         }
       ]
@@ -109,6 +139,14 @@ module kv 'br/public:avm/res/key-vault/vault:0.10.0' = {
       {
         name: format('pep-${kvName}')
         subnetResourceId: pepVNet.outputs.subnetResourceIds[0]
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              name: kvPrivateDnsZone
+              privateDnsZoneResourceId: privateDnsZoneKv.outputs.resourceId
+            }
+          ]
+        }
       }
     ]
     roleAssignments: [
@@ -145,6 +183,10 @@ module caeVNet 'br/public:avm/res/network/virtual-network:0.4.0' = {
         addressPrefix: caeSubnetAddressPrefix
         // networkSecurityGroupResourceId: nsg.outputs.resourceId
       }
+      {
+        name: vmSubnetName
+        addressPrefix: vmSubnetAddressPrefix
+      }
     ]
   }
 }
@@ -171,6 +213,8 @@ module pepVNet 'br/public:avm/res/network/virtual-network:0.4.0' = {
         allowVirtualNetworkAccess: true
         remotePeeringAllowVirtualNetworkAccess: true
         remotePeeringEnabled: true
+        remotePeeringAllowForwardedTraffic: false
+        allowForwardedTraffic: false
         remotePeeringName: 'cae-pep-peer'
       }
     ]
@@ -181,7 +225,7 @@ module pepVNet 'br/public:avm/res/network/virtual-network:0.4.0' = {
 var privateDnsZoneAcrName = 'privatelink${environment().suffixes.acrLoginServer}'
 var sqlServerPrivateDnsZone = 'privatelink${environment().suffixes.sqlServerHostname}'
 var kvPrivateDnsZone = 'privatelink${environment().suffixes.keyvaultDns}'
-var storageAccountPrivateDnsZone = 'privatelink${environment().suffixes.storage}'
+var storageAccountPrivateDnsZone = 'privatelink.${environment().suffixes.storage}'
 module privateDnsZoneAcr 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
   name: format(deployModulePattern, 'dns-${privateDnsZoneAcrName}')
   params: {
@@ -259,6 +303,14 @@ module userAssignedIdentity 'br/public:avm/res/managed-identity/user-assigned-id
     name: cappIdName
   }
 }
+var sqlAdminMid = format('id-sqladmin-${dashedNameSuffix}')
+module sqlAdminMidRes 'br/public:avm/res/managed-identity/user-assigned-identity:0.4.0' = {
+  name: format(deployModulePattern, sqlAdminMid)
+  params: {
+    // Required parameters
+    name: sqlAdminMid
+  }
+}
 
 var containerRegistryName = format('acr${blockNameSuffix}')
 module containerRegistry 'br/public:avm/res/container-registry/registry:0.5.1' = {
@@ -289,9 +341,9 @@ module containerRegistry 'br/public:avm/res/container-registry/registry:0.5.1' =
     networkRuleSetDefaultAction: 'Allow'
     networkRuleBypassOptions: 'None'
     networkRuleSetIpRules: [
-      {
+      for ip in firewallIpWhitelist: {
+        value: ip
         action: 'Allow'
-        value: remoteIp
       }
     ]
     roleAssignments: [
@@ -309,40 +361,63 @@ module containerRegistry 'br/public:avm/res/container-registry/registry:0.5.1' =
   }
 }
 
-// var sqlSrvName = format('sqlsrv-${dashedNameSuffix}')
-// var dbName = format('db-${dashedNameSuffix}')
-// module sqlSrvRes 'br/public:avm/res/sql/server:0.8.0' = {
-//   name: format(deployModulePattern, sqlSrvName)
-//   params: {
-//     name: sqlSrvName
-//     location: location
-//     publicNetworkAccess: 'Disabled'
-//     administrators:{
-//       azureADOnlyAdminLogin: true
-//       azureADOnlyAdminLoginPrincipalId: userAssignedIdentity.outputs.principalId
-//     }
-//     databases: [
-//       {
-//         name: dbName
-//         collation: 'SQL_Latin1_General_CP1_CI_AS'
-//       }
-//     ]
-//     privateEndpoints: [
-//       {
-//         name: format('pep-${sqlSrvName}')
-//         privateDnsZoneGroup: {
-//           privateDnsZoneGroupConfigs: [
-//             {
-//               name: sqlServerPrivateDnsZone
-//               privateDnsZoneResourceId: privateDnsZoneSql.outputs.resourceId
-//             }
-//           ]
-//         }
-//         subnetResourceId: pepVNet.outputs.resourceId
-//       }
-//     ]
-//   }
-// }
+var sqlSrvName = format('sqlsrv-${dashedNameSuffix}')
+var dbName = format('db-${dashedNameSuffix}')
+module sqlSrvRes 'br/public:avm/res/sql/server:0.11.1' = {
+  name: format(deployModulePattern, sqlSrvName)
+  params: {
+    name: sqlSrvName
+    location: location
+    publicNetworkAccess: 'Enabled'
+    administratorLogin: useEntraOnlySqlAuthentications ? '' : sqlServerLogin
+    administratorLoginPassword: useEntraOnlySqlAuthentications ? '' : sqlServerSecret
+    administrators: {
+      azureADOnlyAuthentication: useEntraOnlySqlAuthentications
+      principalType: 'Application'
+      login: sqlAdminMidRes.outputs.name
+      sid: sqlAdminMidRes.outputs.clientId
+      tenantId: tenant().tenantId
+    }
+    firewallRules: [
+      for ip in firewallIpWhitelist: {
+        name: format('fw-${ip}')
+        startIpAddress: ip
+        endIpAddress: ip
+      }
+    ]
+    auditSettings: {
+      state: 'Disabled'
+    }
+    databases: [
+      {
+        name: dbName
+        // standard european collation (case-sensitive, accent-sensitive)
+        collation: 'SQL_Latin1_General_CP1_CS_AS'
+        // VCore model (General Purpose)
+        sku: {
+          name: 'GP_Gen5_2'
+          tier: 'GeneralPurpose'
+          family: 'Gen5'
+          capacity: 2
+        }
+      }
+    ]
+    privateEndpoints: [
+      {
+        name: format('pep-${sqlSrvName}')
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              name: sqlServerPrivateDnsZone
+              privateDnsZoneResourceId: privateDnsZoneSql.outputs.resourceId
+            }
+          ]
+        }
+        subnetResourceId: pepVNet.outputs.subnetResourceIds[0]
+      }
+    ]
+  }
+}
 
 var caeName = format('cae-${dashedNameSuffix}')
 module managedEnvironment 'br/public:avm/res/app/managed-environment:0.8.0' = {
@@ -360,6 +435,17 @@ module managedEnvironment 'br/public:avm/res/app/managed-environment:0.8.0' = {
     logsDestination: 'log-analytics'
     internal: false
     zoneRedundant: false
+    openTelemetryConfiguration: {
+      samplingPercentage: 100
+    }
+    storages: [
+      {
+        shareName: fileShareName
+        accessMode: 'ReadWrite'
+        kind: 'SMB'
+        storageAccountName: storageAccount.outputs.name
+      }
+    ]
   }
 }
 

@@ -1,6 +1,6 @@
 param location string = resourceGroup().location
 param env string = 'dev'
-param dashedNameSuffix string = 'capplab-${env}-02'
+param dashedNameSuffix string = 'capplab-${env}-03'
 
 param caeEnvName string
 param acrName string
@@ -9,6 +9,10 @@ param containerImageRepository string
 param containerImageTag string
 param secretName string
 param vaultName string
+
+param customDnsZoneName string
+param customDnsZoneResourceGroup string
+param customDnsZoneSubscriptionId string
 
 var deployModulePattern = 'capp-module-{0}'
 var memorySize = '1.0Gi'
@@ -27,6 +31,20 @@ resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {
 resource uaid 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
   name: uaidName
 }
+module ingressCnameRecord 'br/public:avm/res/network/dns-zone:0.5.0' = {
+  name: 'ingress-cname-record'
+  scope: resourceGroup(customDnsZoneSubscriptionId,customDnsZoneResourceGroup)
+  params: {
+    name: customDnsZoneName
+    cname: [
+      {
+        name: 'gbocaplab'
+        ttl: 300
+        cnameRecord: { cname: cappIngress.outputs.fqdn }
+      }
+    ]
+  }
+}
 
 module cappCarbone 'br/public:avm/res/app/container-app:0.11.0' = {
   name: format(deployModulePattern, carboneCappName)
@@ -38,8 +56,8 @@ module cappCarbone 'br/public:avm/res/app/container-app:0.11.0' = {
     ingressExternal: false
     ingressTargetPort: 4000
     ingressTransport: 'http'
-    scaleMinReplicas: 1
-    scaleMaxReplicas: 2
+    scaleMinReplicas: 2
+    scaleMaxReplicas: 8
     managedIdentities: {
       userAssignedResourceIds: [
         uaid.id
@@ -51,6 +69,28 @@ module cappCarbone 'br/public:avm/res/app/container-app:0.11.0' = {
         server: acr.properties.loginServer
       }
     ]
+    volumes:[
+      {
+        name: 'carbone'
+        storageType: 'EmptyDir'
+      }
+    ]
+    // scaleRules: [
+    //   {
+    //     metricName: 'cpu'
+    //     metricThreshold: 80
+    //     scaleDirection: 'out'
+    //     scaleStep: 1
+    //     cooldown: 'PT1M'
+    //   }
+    //   {
+    //     metricName: 'cpu'
+    //     metricThreshold: 20
+    //     scaleDirection: 'in'
+    //     scaleStep: 1
+    //     cooldown: 'PT1M'
+    //   }
+    // ]
     containers: [
       {
         image: '${acr.properties.loginServer}/${containerImageRepository}/carbone:latest'
@@ -59,6 +99,18 @@ module cappCarbone 'br/public:avm/res/app/container-app:0.11.0' = {
           memory: memorySize
           cpu: json('0.5')
         }
+        volumeMounts: [
+          {
+            volumeName: 'carbone'
+            subPath: 'render'
+            mountPath: '/app/render'
+          }
+          {
+            volumeName: 'carbone'
+            subPath: 'template'
+            mountPath: '/app/template'
+          }
+        ]
       }
     ]
   }
@@ -105,16 +157,6 @@ module cappApi 'br/public:avm/res/app/container-app:0.11.0' = {
         ]
       }
     ]
-    // initContainersTemplate: [
-    //   {
-    //     image: 'docker.io/alpine:latest'
-    //     name: 'init'
-    //     resources: {
-    //       cpu: json('0.5')
-    //       memory: '1.0Gi'
-    //     }
-    //   }
-    // ]
   }
 }
 
@@ -166,6 +208,14 @@ module cappIngress 'br/public:avm/res/app/container-app:0.11.0' = {
         uaid.id
       ]
     }
+    customDomains: [
+      {
+        name: 'gbocaplab'
+        zoneName: customDnsZoneName
+        zoneResourceGroup: customDnsZoneResourceGroup
+        zoneSubscriptionId: customDnsZoneSubscriptionId
+      }
+    ]
     ingressExternal: true
     disableIngress: false
     ingressAllowInsecure: false
