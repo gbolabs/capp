@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using api;
@@ -7,15 +8,21 @@ using Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Context.Propagation;
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
+// Define OpenTelemetry propagator (to extract the `traceparent` header)
+var propagator = new TraceContextPropagator();
 
 builder.Logging.ClearProviders();
 
 builder.Services.AddDbContext<MyDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))); // Access connection string from appsettings.json
+    options.UseSqlServer(
+        builder.Configuration
+            .GetConnectionString("DefaultConnection"))); // Access connection string from appsettings.json
 
 
 var noParallelWithQueue = "no-parallel-with-queue"; // Name of the rate limiter
@@ -23,11 +30,18 @@ var FifteenRequestsPerMinute = "fifteen-requests-per-minute"; // Name of the rat
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(op =>
+builder.Services.AddCors(config =>
 {
-    
+    config.DefaultPolicyName = "AllowAll";
+    config.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyHeader();
+        policy.AllowAnyMethod();
+        policy.AllowAnyOrigin();
+    });
 });
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(_ => { });
 builder.Services.AddHostedService<BackgroundJob>();
 builder.Services.AddRateLimiter(config =>
 {
@@ -44,33 +58,43 @@ builder.Services.AddRateLimiter(config =>
         options.QueueLimit = 2; // Allow 2 requests to be queued
     });
     config.OnRejected = OnRejected;
-
-    
 });
-
 async ValueTask OnRejected(OnRejectedContext arg1, CancellationToken arg2)
 {
     var logger = arg1.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
     logger.LogWarning("Request rejected: {0}", arg1.HttpContext.Request.Path);
     await Task.CompletedTask;
 }
+
 // Add localizations
 builder.Services.AddOpenTelemetry()
     .WithLogging()
-    .WithMetrics(builder =>
+    .WithMetrics(meterProviderBuilder =>
     {
-        builder.AddAspNetCoreInstrumentation()
+        meterProviderBuilder.AddAspNetCoreInstrumentation()
             .AddAspNetCoreInstrumentation();
     })
-    .WithTracing(builder =>
+    .WithTracing(tracerProviderBuilder =>
     {
-        builder.AddAspNetCoreInstrumentation()
-            .AddHttpClientInstrumentation();
+        tracerProviderBuilder
+            .SetSampler(new ParentBasedSampler(new AlwaysOnSampler()))
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddConsoleExporter();
     })
     .UseAzureMonitor(options =>
-{
-    options.ConnectionString = builder.Configuration.GetSection("ApplicationInsights").GetValue<string>("ConnectionString");
-});
+    {
+        options.ConnectionString = builder.Configuration.GetSection("ApplicationInsights")
+            .GetValue<string>("ConnectionString");
+    })
+    .ConfigureResource(resourceBuilder =>
+    {
+        resourceBuilder.AddService(
+            autoGenerateServiceInstanceId: true,
+            serviceName: "API",
+            serviceNamespace: "Capp-Lab"
+        );
+    });
 builder.Services.AddLocalization(options => options.ResourcesPath = "Texts");
 builder.Services.Configure<RequestLocalizationOptions>(options =>
 {
@@ -85,14 +109,13 @@ builder.Services.Configure<RequestLocalizationOptions>(options =>
         .AddSupportedUICultures(supportedCultures);
 });
 
-
 var app = builder.Build();
 
 // Apply any pending migrations automatically
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<MyDbContext>();
-    dbContext.Database.Migrate(); // Applies any pending migrations automatically
+    await dbContext.Database.MigrateAsync(); // Applies any pending migrations automatically
 }
 
 var vaultName = builder.Configuration["KEYVAULT_NAME"];
@@ -100,10 +123,42 @@ var clientId = builder.Configuration["AZURE_CLIENT_ID"];
 
 
 // Configure the HTTP request pipeline.
+// Add the OpenTelemetry Parent Context propagator
+// Middleware to extract `traceparent` and use it for the new Activity
+app.Use(async (context, next) =>
+{
+    // Extract `traceparent` from headers
+    var traceparent = context.Request.Headers["traceparent"].FirstOrDefault();
 
-// Add the correlation id middleware
+    if (!string.IsNullOrEmpty(traceparent))
+    {
+        // Extract trace context from `traceparent` header
+        var propagationContext = propagator.Extract(default, context, (httpContext, s) =>
+        {
+            if (httpContext.Request.Headers.TryGetValue(s, out var values))
+            {
+                return values;
+            }
+
+            return ArraySegment<string>.Empty;
+        } );
+
+        // Create a new Activity (Span) based on extracted `traceparent`
+        var activity = new Activity("Incoming API Request");
+        activity.SetParentId(propagationContext.ActivityContext.TraceId, propagationContext.ActivityContext.SpanId);
+
+        // Start the Activity to continue tracing
+        activity.Start();
+    }
+
+    await next();
+});
+
+
+
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseMiddleware<TraceIdMiddleware>();
+app.UseCors("AllowAll");
 
 if (app.Environment.IsDevelopment())
 {
@@ -203,9 +258,24 @@ app.MapGet("/api/weatherforecast", () =>
     .WithName("GetWeatherForecast")
     .WithOpenApi();
 
-app.Run();
+app.MapGet("/api/opentelemetry", (HttpRequest req) => new OtDiagApiResponse
+    {
+        TraceParentHeader = req.Headers.TraceParent,
+        TraceParent = Activity.Current?.Context.TraceId.ToString(),
+        TraceSpan = Activity.Current?.Context.SpanId.ToString()
+    })
+    .Produces<OtDiagApiResponse>((int)StatusCode.Ok, "application/json");
+
+await app.RunAsync();
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+}
+
+public class OtDiagApiResponse
+{
+    public string? TraceParentHeader { get; set; }
+    public string? TraceParent { get; set; }
+    public string? TraceSpan { get; set; }
 }

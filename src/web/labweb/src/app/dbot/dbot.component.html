@@ -1,0 +1,26 @@
+<p>DB OpenTelemetry Checks</p>
+<table>
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Name</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr *ngFor="let product of products">
+            <td>{{ product.id }}</td>
+            <td>{{ product.name }}</td>
+            <td>
+                <button (click)="deleteEntry(product.id)">
+                    <i class="fa fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    </tbody>
+    <tfoot>
+        <tr>
+            <td><input type="text" [(ngModel)]="name" /></td>
+            <td><button (click)="addProduct()">Add</button></td>
+            <td><button (click)="load()">Load</button></td>
+        </tr>
+</table>
