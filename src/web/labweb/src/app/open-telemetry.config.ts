@@ -14,6 +14,10 @@ export function getProvider(): WebTracerProvider {
   return provider;
 }
 
+export function getRequestSpan(url: string) {
+  return tracer.startSpan(url);
+}
+
 export function getSpan() {
   return spaSessionSpan;
 }

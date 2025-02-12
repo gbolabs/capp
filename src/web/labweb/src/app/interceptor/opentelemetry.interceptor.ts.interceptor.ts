@@ -1,8 +1,8 @@
 import { HttpInterceptorFn } from '@angular/common/http';
-import { getSpan } from '../open-telemetry.config';
+import { getRequestSpan, getSpan } from '../open-telemetry.config';
 
 export const OpenTelemetryInterceptor: HttpInterceptorFn = (req, next) => {
-  const span = getSpan(); // Get the active OpenTelemetry span
+  const span = getRequestSpan(req.url) || getSpan();
 
   if (!span) {
     console.warn('OpenTelemetryInterceptor: No active span found.');
@@ -10,18 +10,12 @@ export const OpenTelemetryInterceptor: HttpInterceptorFn = (req, next) => {
   }
 
   const traceId = span.spanContext().traceId;
-  const spanId = span.spanContext().spanId;
+  const newSpanId = span.spanContext().spanId;
+  console.log(`Adding traceparent header: 00-${traceId}-${newSpanId}-01`);
 
-  if (!traceId || !spanId) {
-    console.warn('OpenTelemetryInterceptor: Missing traceId or spanId.');
-    return next(req);
-  }
-
-  console.log(`Adding traceparent header: 00-${traceId}-${spanId}-01`);
-
-  // ✅ Attach W3C Trace Context header
+  // Attach the W3C Trace Context header to the request
   const updatedReq = req.clone({
-    setHeaders: { traceparent: `00-${traceId}-${spanId}-01` },
+    setHeaders: { traceparent: `00-${traceId}-${newSpanId}-01` },
   });
 
   return next(updatedReq);
