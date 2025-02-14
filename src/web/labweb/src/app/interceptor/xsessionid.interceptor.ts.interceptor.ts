@@ -1,22 +1,14 @@
 import { HttpInterceptorFn } from '@angular/common/http';
-import { getSpan } from '../open-telemetry.config';
+import { instanceId } from '../../main';
 
 export const XSessionIdInterceptor: HttpInterceptorFn = (req, next) => {
 
-  // Add your interceptor logic here
-  const spaSessionSpan = getSpan();
-
-  if (!spaSessionSpan) {
-    console.warn('OpenTelemetryInterceptor: No active span found.');
-    return next(req);
-  }
-
-  const traceId = spaSessionSpan.spanContext().traceId;
+  let sessionId = instanceId;
 
   // use the traceId as the x-session-id
-  console.log(`Adding x-session-id header: ${traceId}`);
+  console.log(`Adding x-session-id header: ${sessionId}`);
   const updatedReq = req.clone({
-    setHeaders: { 'X-Session-Id': traceId },
+    setHeaders: { 'x-session-id': sessionId },
   });
 
   return next(updatedReq);

@@ -19,6 +19,8 @@ var propagator = new TraceContextPropagator();
 
 builder.Logging.ClearProviders();
 
+builder.Services.AddHttpContextAccessor();
+
 builder.Services.AddDbContext<MyDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration
@@ -59,6 +61,7 @@ builder.Services.AddRateLimiter(config =>
     });
     config.OnRejected = OnRejected;
 });
+
 async ValueTask OnRejected(OnRejectedContext arg1, CancellationToken arg2)
 {
     var logger = arg1.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
@@ -78,6 +81,7 @@ builder.Services.AddOpenTelemetry()
     {
         tracerProviderBuilder
             .SetSampler(new ParentBasedSampler(new AlwaysOnSampler()))
+            .AddProcessor<ActivityEnrichingProcessor>()
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation()
             .AddConsoleExporter();
@@ -141,7 +145,7 @@ app.Use(async (context, next) =>
             }
 
             return ArraySegment<string>.Empty;
-        } );
+        });
 
         // Create a new Activity (Span) based on extracted `traceparent`
         var activity = new Activity("Incoming API Request");
@@ -153,7 +157,6 @@ app.Use(async (context, next) =>
 
     await next();
 });
-
 
 
 app.UseMiddleware<ExceptionMiddleware>();
@@ -267,15 +270,3 @@ app.MapGet("/api/opentelemetry", (HttpRequest req) => new OtDiagApiResponse
     .Produces<OtDiagApiResponse>((int)StatusCode.Ok, "application/json");
 
 await app.RunAsync();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
-
-public class OtDiagApiResponse
-{
-    public string? TraceParentHeader { get; set; }
-    public string? TraceParent { get; set; }
-    public string? TraceSpan { get; set; }
-}

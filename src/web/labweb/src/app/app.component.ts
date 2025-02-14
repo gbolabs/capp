@@ -2,12 +2,13 @@ import { HttpClient } from '@angular/common/http';
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DbotComponent } from "./dbot/dbot.component";
+import { OtuserComponent } from "./otuser/otuser.component";
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css'],
-  imports: [CommonModule, DbotComponent, DbotComponent]
+  imports: [CommonModule, DbotComponent, OtuserComponent]
 })
 export class AppComponent {
   title = 'labweb';

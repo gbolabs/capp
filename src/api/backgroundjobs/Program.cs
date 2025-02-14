@@ -55,16 +55,7 @@ var host = Host.CreateDefaultBuilder()
 // Add Quartz Hosted Service
         services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
         services.AddSingleton(context.Configuration);
-        services.AddLogging(options =>
-        {
-            options.AddConsole();
-            // Single line log with timestamp and log level name
-            options.AddSimpleConsole(o =>
-            {
-                o.TimestampFormat = "[HH:mm:ss] ";
-                o.SingleLine = true;
-            });
-        });
+        // services.AddOpenTelemetry();
     })
     .UseConsoleLifetime()
     .Build();
